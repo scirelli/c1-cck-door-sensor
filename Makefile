@@ -23,12 +23,15 @@ OS := $(shell uname -s)
 ifeq ($(OS),Darwin)
 BASE_ARDUINO    = $(HOME)/Library/Arduino15
 BASE_USER_LIBS  = $(HOME)/Projects/ArduinoLibs/libraries/
+STTY_FLAG 		= -f
+SERIAL_PORT ?= $(shell ls /dev/cu.usbmodem* 2>/dev/null | head -1)
 else
 BASE_ARDUINO    = $(HOME)/.arduino15
 BASE_USER_LIBS  = $(HOME)/Arduino/libraries
+STTY_FLAG 		= -F
+SERIAL_PORT ?= $(shell ls /dev/ttyACM* 2>/dev/null | head -1)
 endif
 
-SERIAL_PORT ?= /dev/ttyACM0
 BAUD_RATE ?= 115200
 
 # ============================================================================
@@ -445,7 +448,7 @@ clean:
 
 monitor:
 	@echo "Opening serial monitor on $(SERIAL_PORT) at $(BAUD_RATE) baud..."
-	@stty -F $(SERIAL_PORT) $(BAUD_RATE) raw -clocal -echo
+	@stty $(STTY_FLAG) $(SERIAL_PORT) $(BAUD_RATE) raw -clocal -echo
 	@cat $(SERIAL_PORT)
 
 # Send: Send a message to the serial port
@@ -455,7 +458,7 @@ send:
 		echo "Usage: make send MSG=\"Your Message\""; \
 	else \
 		echo "Sending '$(MSG)' to $(SERIAL_PORT)..."; \
-		stty -F $(SERIAL_PORT) $(BAUD_RATE) raw -clocal -echo; \
+		stty $(STTY_FLAG) $(SERIAL_PORT) $(BAUD_RATE) raw -clocal -echo; \
 		echo "$(MSG)" > $(SERIAL_PORT); \
 	fi
 
@@ -476,3 +479,5 @@ print-vars:
 	@echo "PROJECT_OBJS: $(PROJECT_OBJS)"
 	@echo "LIB_OBJS: $(LIB_OBJS)"
 	@echo "CORE_OBJS count: $(words $(CORE_OBJS))"
+	@echo "SERIAL_PORT: $(SERIAL_PORT)"
+	@echo "BAUD_RATE: $(BAUD_RATE)"

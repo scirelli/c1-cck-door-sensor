@@ -9,6 +9,8 @@
 
 #define FILE_NAME "data.csv"
 
+typedef unsigned long time__t;
+
 Adafruit_LSM6DSOX lsm6ds;
 Adafruit_LIS3MDL lis3mdl;
 File dataFile;
