@@ -43,7 +43,7 @@ STM32_VERSION   := 2.12.0
 GCC_VERSION     := 14.2.1-1.1
 
 # Project settings
-TARGET          := main
+TARGET          := door-main
 SRC_DIR         := .
 BUILD_DIR       := build
 
@@ -154,7 +154,7 @@ LDSCRIPT_VARIANT := $(VARIANT_DIR)/ldscript.ld
 LDSCRIPT_SYSTEM  := $(STM32_CORE)/system/ldscript.ld
 
 LDFLAGS := \
-	$(CPU_FLAGS) \
+$(CPU_FLAGS) \
 	-Os \
 	--specs=nano.specs \
 	-Wl,--defsym=LD_FLASH_OFFSET=0x0 \
@@ -286,7 +286,7 @@ SRCWRAPPER_OTHER_CPP_SRCS := \
 	$(SRCWRAPPER_DIR)/new.cpp
 
 # Startup assembly file (contains Reset_Handler and interrupt vector table)
-SRCWRAPPER_ASM_SRCS := $(SRCWRAPPER_DIR)/stm32/startup_stm32yyxx.S
+ASM_SRCS := $(STM32_CORE)/system/Drivers/CMSIS/Device/ST/STM32F4xx/Source/Templates/gcc/startup_stm32f405xx.s
 
 # All SrcWrapper sources
 SRCWRAPPER_C_SRCS := $(SRCWRAPPER_HAL_SRCS) $(SRCWRAPPER_LL_SRCS) $(SRCWRAPPER_STM32_SRCS) $(SRCWRAPPER_OTHER_SRCS)
@@ -310,6 +310,7 @@ ARDUINO_CORE_CPP_SRCS := \
 	$(ARDUINO_CORE_DIR)/Stream.cpp \
 	$(ARDUINO_CORE_DIR)/Tone.cpp \
 	$(ARDUINO_CORE_DIR)/WMath.cpp \
+	$(ARDUINO_CORE_DIR)/WSerial.cpp \
 	$(ARDUINO_CORE_DIR)/WString.cpp
 
 ARDUINO_CORE_C_SRCS := \
@@ -347,7 +348,7 @@ CORE_A := $(BUILD_DIR)/core.a
 # Core object files
 CORE_OBJS := $(patsubst %.c,$(BUILD_DIR)/core/%.o,$(notdir $(SRCWRAPPER_C_SRCS)))
 CORE_OBJS += $(patsubst %.cpp,$(BUILD_DIR)/core/%.o,$(notdir $(SRCWRAPPER_CPP_SRCS)))
-CORE_OBJS += $(patsubst %.S,$(BUILD_DIR)/core/%.o,$(notdir $(SRCWRAPPER_ASM_SRCS)))
+CORE_OBJS += $(patsubst %.s,$(BUILD_DIR)/core/%.o,$(notdir $(ASM_SRCS)))
 CORE_OBJS += $(patsubst %.c,$(BUILD_DIR)/core/%.o,$(notdir $(ARDUINO_CORE_C_SRCS)))
 CORE_OBJS += $(patsubst %.cpp,$(BUILD_DIR)/core/%.o,$(notdir $(ARDUINO_CORE_CPP_SRCS)))
 CORE_OBJS += $(patsubst %.c,$(BUILD_DIR)/core/%.o,$(notdir $(filter %.c,$(VARIANT_SRCS))))
@@ -356,7 +357,7 @@ CORE_OBJS += $(patsubst %.cpp,$(BUILD_DIR)/core/%.o,$(notdir $(filter %.cpp,$(VA
 # ============================================================================
 # VPATH for library and core sources
 # ============================================================================
-VPATH := $(sort $(dir $(LIB_CPP_SRCS) $(LIB_C_SRCS) $(SRCWRAPPER_C_SRCS) $(SRCWRAPPER_CPP_SRCS) $(SRCWRAPPER_ASM_SRCS) $(ARDUINO_CORE_C_SRCS) $(ARDUINO_CORE_CPP_SRCS) $(VARIANT_SRCS)))
+VPATH := $(sort $(dir $(LIB_CPP_SRCS) $(LIB_C_SRCS) $(SRCWRAPPER_C_SRCS) $(SRCWRAPPER_CPP_SRCS) $(ASM_SRCS) $(ARDUINO_CORE_C_SRCS) $(ARDUINO_CORE_CPP_SRCS) $(VARIANT_SRCS)))
 
 # ============================================================================
 # Assembly flags
@@ -419,8 +420,8 @@ $(BUILD_DIR)/core/%.o: %.c | $(BUILD_DIR)/core
 	@echo "Compiling core $<..."
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Compile core assembly files (.S) - explicit rule for startup file
-$(BUILD_DIR)/core/startup_stm32yyxx.o: $(SRCWRAPPER_DIR)/stm32/startup_stm32yyxx.S | $(BUILD_DIR)/core
+# Compile core assembly files (.s) - explicit rule for startup file
+$(BUILD_DIR)/core/startup_stm32f405xx.o: $(ASM_SRCS) | $(BUILD_DIR)/core
 	@echo "Assembling core $<..."
 	$(CC) $(ASFLAGS) -c $< -o $@
 
