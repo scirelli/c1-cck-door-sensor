@@ -20,9 +20,6 @@ MAKEFLAGS += -j$(shell nproc 2>/dev/null || echo 1)
 # =============================================================================
 OS := $(shell uname -s)
 
-export PATH := $(PATH):$(shell pwd)/stm32cube/bin
-export PATH := $(PATH):/opt/AppImages/ImageMagick
-
 ifeq ($(OS),Darwin)
 BASE_ARDUINO    = $(HOME)/Library/Arduino15
 BASE_USER_LIBS  = $(HOME)/Projects/ArduinoLibs/libraries/
@@ -439,11 +436,9 @@ size: $(BUILD_DIR)/$(TARGET).elf
 	@echo "Size:"
 	$(SIZE) -A $<
 
-# Upload via DFU (requires STM32CubeProgrammer)
-STM32TOOLS := $(ARDUINO_HOME)/packages/STMicroelectronics/tools/STM32Tools/2.4.0
 upload: $(BUILD_DIR)/$(TARGET).bin
 	@echo "Uploading via DFU..."
-	sh $(STM32TOOLS)/stm32CubeProg.sh -i dfu -f $< -o 0x0 -v 0x0483 -p 0xdf11 -a 0x8000000 -s 0x8000000
+	dfu-util --alt 0 --dfuse-address 0x08000000:leave --download $<
 
 clean:
 	rm -rf $(BUILD_DIR)
