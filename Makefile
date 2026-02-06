@@ -1,14 +1,16 @@
 # STM32F405 Feather Makefile
 # Board: STMicroelectronics FEATHER_F405
 #
-# This Makefile builds everything from source - no Arduino IDE required after
-# initial toolchain/library installation.
+# This Makefile builds everything from source - no Arduino IDE required.
+# Toolchain and libraries are installed locally in ./tools/
 #
 # Usage:
-#   make          - Build the project (builds core.a if needed)
-#   make upload   - Build and upload via DFU
-#   make clean    - Clean build artifacts
-#   make print-vars - Debug: print configuration variables
+#   make              - Build the project
+#   make upload       - Build and upload via DFU
+#   make clean        - Clean build artifacts
+#   make install-deps - Install toolchain and STM32 core (prompts first)
+#   make check-deps   - Check if dependencies are installed
+#   make print-vars   - Debug: print configuration variables
 
 # =============================================================================
 # OPTIMIZATION #
@@ -22,26 +24,26 @@ OS := $(shell uname -s)
 export PATH := $(PATH):$(shell pwd)/stm32cube/bin
 
 ifeq ($(OS),Darwin)
-BASE_ARDUINO    = $(HOME)/Library/Arduino15
-BASE_USER_LIBS  = $(HOME)/Projects/ArduinoLibs/libraries/
-STTY_FLAG 		= -f
-SERIAL_PORT ?= $(shell ls /dev/cu.usbmodem* 2>/dev/null | head -1)
+STTY_FLAG       = -f
+SERIAL_PORT     ?= $(shell ls /dev/cu.usbmodem* 2>/dev/null | head -1)
 else
-BASE_ARDUINO    = $(HOME)/.arduino15
-BASE_USER_LIBS  = $(HOME)/Arduino/libraries
-STTY_FLAG 		= -F
-SERIAL_PORT ?= $(shell ls /dev/ttyACM* 2>/dev/null | head -1)
+STTY_FLAG       = -F
+SERIAL_PORT     ?= $(shell ls /dev/ttyACM* 2>/dev/null | head -1)
 endif
 
 BAUD_RATE ?= 115200
 
 # ============================================================================
-# Configuration - Adjust these paths for your system
+# Configuration
 # ============================================================================
-ARDUINO_HOME    ?= $(BASE_ARDUINO)
-ARDUINO_LIBS    ?= $(BASE_USER_LIBS)
-STM32_VERSION   := 2.12.0
-GCC_VERSION     := 14.2.1-1.1
+# Local tools directory (no Arduino IDE needed)
+TOOLS_DIR       := $(CURDIR)/tools
+USER_LIBS       := $(TOOLS_DIR)/libraries
+
+# Versions
+STM32_CORE_VERSION := 2.12.0
+ARM_GCC_VERSION    := 14.2.rel1
+CMSIS_VERSION      := 5.9.0
 
 # Project settings
 TARGET          := door-main
@@ -49,9 +51,19 @@ SRC_DIR         := src
 BUILD_DIR       := build
 
 # ============================================================================
-# Toolchain
+# Toolchain paths (local installation)
 # ============================================================================
-TOOLCHAIN_PATH  := $(ARDUINO_HOME)/packages/STMicroelectronics/tools/xpack-arm-none-eabi-gcc/$(GCC_VERSION)/bin
+ifeq ($(OS),Darwin)
+    ARM_GCC_ARCHIVE := arm-gnu-toolchain-$(ARM_GCC_VERSION)-darwin-arm64-arm-none-eabi.tar.xz
+    ARM_GCC_URL     := https://developer.arm.com/-/media/Files/downloads/gnu/$(ARM_GCC_VERSION)/binrel/$(ARM_GCC_ARCHIVE)
+    ARM_GCC_DIR     := arm-gnu-toolchain-$(ARM_GCC_VERSION)-darwin-arm64-arm-none-eabi
+else
+    ARM_GCC_ARCHIVE := arm-gnu-toolchain-$(ARM_GCC_VERSION)-x86_64-arm-none-eabi.tar.xz
+    ARM_GCC_URL     := https://developer.arm.com/-/media/Files/downloads/gnu/$(ARM_GCC_VERSION)/binrel/$(ARM_GCC_ARCHIVE)
+    ARM_GCC_DIR     := arm-gnu-toolchain-$(ARM_GCC_VERSION)-x86_64-arm-none-eabi
+endif
+
+TOOLCHAIN_PATH  := $(TOOLS_DIR)/$(ARM_GCC_DIR)/bin
 CC              := $(TOOLCHAIN_PATH)/arm-none-eabi-gcc
 CXX             := $(TOOLCHAIN_PATH)/arm-none-eabi-g++
 OBJCOPY         := $(TOOLCHAIN_PATH)/arm-none-eabi-objcopy
@@ -59,11 +71,14 @@ SIZE            := $(TOOLCHAIN_PATH)/arm-none-eabi-size
 AR              := $(TOOLCHAIN_PATH)/arm-none-eabi-ar
 
 # ============================================================================
-# Platform paths
+# STM32 Core paths (downloaded from GitHub)
 # ============================================================================
-STM32_CORE      := $(ARDUINO_HOME)/packages/STMicroelectronics/hardware/stm32/$(STM32_VERSION)
-CMSIS           := $(ARDUINO_HOME)/packages/STMicroelectronics/tools/CMSIS/6.2.0/CMSIS/Core/Include
-CMSIS_DSP       := $(ARDUINO_HOME)/packages/STMicroelectronics/tools/CMSIS_DSP/1.16.2
+STM32_CORE      := $(TOOLS_DIR)/Arduino_Core_STM32-$(STM32_CORE_VERSION)
+STM32_CORE_URL  := https://github.com/stm32duino/Arduino_Core_STM32/archive/refs/tags/$(STM32_CORE_VERSION).tar.gz
+
+# CMSIS paths (inside STM32 core)
+CMSIS           := $(STM32_CORE)/system/Drivers/CMSIS/Core/Include
+CMSIS_DSP       := $(STM32_CORE)/system/Drivers/CMSIS/DSP
 CMSIS_DEVICE    := $(STM32_CORE)/system/Drivers/CMSIS/Device/ST/STM32F4xx
 
 # Variant
@@ -125,13 +140,13 @@ INCLUDES := \
 	-I$(STM32_CORE)/system/Middlewares/OpenAMP/open-amp/lib/include \
 	-I$(STM32_CORE)/system/Middlewares/OpenAMP/libmetal/lib/include \
 	-I$(STM32_CORE)/system/Middlewares/OpenAMP/virtual_driver \
-	-I$(ARDUINO_LIBS)/STM32duino_STM32SD/src \
-	-I$(ARDUINO_LIBS)/FatFs/src \
-	-I$(ARDUINO_LIBS)/FatFs/src/drivers \
-	-I$(ARDUINO_LIBS)/Adafruit_LSM6DS \
-	-I$(ARDUINO_LIBS)/Adafruit_BusIO \
-	-I$(ARDUINO_LIBS)/Adafruit_Unified_Sensor \
-	-I$(ARDUINO_LIBS)/Adafruit_LIS3MDL
+	-I$(USER_LIBS)/STM32duino_STM32SD/src \
+	-I$(USER_LIBS)/FatFs/src \
+	-I$(USER_LIBS)/FatFs/src/drivers \
+	-I$(USER_LIBS)/Adafruit_LSM6DS \
+	-I$(USER_LIBS)/Adafruit_BusIO \
+	-I$(USER_LIBS)/Adafruit_Unified_Sensor \
+	-I$(USER_LIBS)/Adafruit_LIS3MDL
 
 # ============================================================================
 # Compiler flags
@@ -155,7 +170,7 @@ LDSCRIPT_VARIANT := $(VARIANT_DIR)/ldscript.ld
 LDSCRIPT_SYSTEM  := $(STM32_CORE)/system/ldscript.ld
 
 LDFLAGS := \
-$(CPU_FLAGS) \
+	$(CPU_FLAGS) \
 	-Os \
 	--specs=nano.specs \
 	-Wl,--defsym=LD_FLASH_OFFSET=0x0 \
@@ -181,41 +196,38 @@ LDLIBS := -lc -lm -lgcc -lstdc++
 PROJECT_CPP_SRCS := $(wildcard $(SRC_DIR)/*.cpp)
 PROJECT_C_SRCS   := $(wildcard $(SRC_DIR)/*.c)
 
-# Arduino core library (precompiled)
-CORE_LIB := $(ARDUINO_HOME)/packages/STMicroelectronics/hardware/stm32/$(STM32_VERSION)/cores/arduino
-
 # Library sources - STM32SD
 STM32SD_SRCS := \
-	$(ARDUINO_LIBS)/STM32duino_STM32SD/src/SD.cpp \
-	$(ARDUINO_LIBS)/STM32duino_STM32SD/src/Sd2Card.cpp \
-	$(ARDUINO_LIBS)/STM32duino_STM32SD/src/SdFatFs.cpp \
-	$(ARDUINO_LIBS)/STM32duino_STM32SD/src/bsp_sd.c
+	$(USER_LIBS)/STM32duino_STM32SD/src/SD.cpp \
+	$(USER_LIBS)/STM32duino_STM32SD/src/Sd2Card.cpp \
+	$(USER_LIBS)/STM32duino_STM32SD/src/SdFatFs.cpp \
+	$(USER_LIBS)/STM32duino_STM32SD/src/bsp_sd.c
 
 # Library sources - FatFs
 FATFS_SRCS := \
-	$(ARDUINO_LIBS)/FatFs/src/diskio.c \
-	$(ARDUINO_LIBS)/FatFs/src/drivers/sd_diskio.c \
-	$(ARDUINO_LIBS)/FatFs/src/ff.c \
-	$(ARDUINO_LIBS)/FatFs/src/ff_gen_drv.c \
-	$(ARDUINO_LIBS)/FatFs/src/ffsystem.c \
-	$(ARDUINO_LIBS)/FatFs/src/ffunicode.c
+	$(USER_LIBS)/FatFs/src/diskio.c \
+	$(USER_LIBS)/FatFs/src/drivers/sd_diskio.c \
+	$(USER_LIBS)/FatFs/src/ff.c \
+	$(USER_LIBS)/FatFs/src/ff_gen_drv.c \
+	$(USER_LIBS)/FatFs/src/ffsystem.c \
+	$(USER_LIBS)/FatFs/src/ffunicode.c
 
 # Library sources - Adafruit
 ADAFRUIT_SRCS := \
-	$(ARDUINO_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DS.cpp \
-	$(ARDUINO_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DSOX.cpp \
-	$(ARDUINO_LIBS)/Adafruit_LSM6DS/Adafruit_ISM330DHCX.cpp \
-	$(ARDUINO_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DS3.cpp \
-	$(ARDUINO_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DS33.cpp \
-	$(ARDUINO_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DS3TRC.cpp \
-	$(ARDUINO_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DSL.cpp \
-	$(ARDUINO_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DSO32.cpp \
-	$(ARDUINO_LIBS)/Adafruit_BusIO/Adafruit_BusIO_Register.cpp \
-	$(ARDUINO_LIBS)/Adafruit_BusIO/Adafruit_GenericDevice.cpp \
-	$(ARDUINO_LIBS)/Adafruit_BusIO/Adafruit_I2CDevice.cpp \
-	$(ARDUINO_LIBS)/Adafruit_BusIO/Adafruit_SPIDevice.cpp \
-	$(ARDUINO_LIBS)/Adafruit_Unified_Sensor/Adafruit_Sensor.cpp \
-	$(ARDUINO_LIBS)/Adafruit_LIS3MDL/Adafruit_LIS3MDL.cpp
+	$(USER_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DS.cpp \
+	$(USER_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DSOX.cpp \
+	$(USER_LIBS)/Adafruit_LSM6DS/Adafruit_ISM330DHCX.cpp \
+	$(USER_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DS3.cpp \
+	$(USER_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DS33.cpp \
+	$(USER_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DS3TRC.cpp \
+	$(USER_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DSL.cpp \
+	$(USER_LIBS)/Adafruit_LSM6DS/Adafruit_LSM6DSO32.cpp \
+	$(USER_LIBS)/Adafruit_BusIO/Adafruit_BusIO_Register.cpp \
+	$(USER_LIBS)/Adafruit_BusIO/Adafruit_GenericDevice.cpp \
+	$(USER_LIBS)/Adafruit_BusIO/Adafruit_I2CDevice.cpp \
+	$(USER_LIBS)/Adafruit_BusIO/Adafruit_SPIDevice.cpp \
+	$(USER_LIBS)/Adafruit_Unified_Sensor/Adafruit_Sensor.cpp \
+	$(USER_LIBS)/Adafruit_LIS3MDL/Adafruit_LIS3MDL.cpp
 
 # Platform library sources - Wire
 WIRE_SRCS := \
@@ -476,17 +488,17 @@ term:
 CNT_MNGR ?= podman
 
 ifeq ($(OS),Darwin)
-	ARDUINO_EXE ?= open -a "Arduino IDE"
+ARDUINO_EXE ?= open -a "Arduino IDE"
 else ifeq ($(OS),Linux)
-	ARDUINO_EXE ?= /opt/AppImages/ArduinoIDE/arduino-ide.AppImage
+ARDUINO_EXE ?= /opt/AppImages/ArduinoIDE/arduino-ide.AppImage
 endif
 
 install-CubePrgr: copy-stm32cube
 
 stm32cube:
-ifeq ($(OS),Linux)
-	$(MAKE) install-CubePrgr
-endif
+	ifeq ($(OS),Linux)
+		$(MAKE) install-CubePrgr
+	endif
 
 copy-stm32cube: build-CubePrgr
 	$(CNT_MNGR) create --name temp_container org.cirelli.containers/stm32cubeprogrammer
@@ -501,17 +513,107 @@ run-arduino: stm32cube
 # =============================================================================
 
 
+# =============================================================================
+# Dependency Installation (Toolchain & STM32 Core)
+# =============================================================================
+.PHONY: install-deps check-deps install-toolchain install-stm32-core prompt-install
+
+# Check if toolchain exists
+TOOLCHAIN_EXISTS := $(shell test -x "$(CC)" && echo yes || echo no)
+STM32_CORE_EXISTS := $(shell test -d "$(STM32_CORE)/cores/arduino" && echo yes || echo no)
+
+check-deps:
+	@echo "=== Dependency Check ==="
+	@echo "Toolchain: $(if $(filter yes,$(TOOLCHAIN_EXISTS)),INSTALLED at $(TOOLCHAIN_PATH),NOT FOUND)"
+	@echo "STM32 Core: $(if $(filter yes,$(STM32_CORE_EXISTS)),INSTALLED at $(STM32_CORE),NOT FOUND)"
+	@echo ""
+	@if [ "$(TOOLCHAIN_EXISTS)" = "no" ] || [ "$(STM32_CORE_EXISTS)" = "no" ]; then \
+		echo "Run 'make install-deps' to install missing dependencies."; \
+	else \
+		echo "All dependencies installed!"; \
+	fi
+
+install-deps: prompt-install
+
+prompt-install:
+	@echo "=== STM32F405 Toolchain Installer ==="
+	@echo ""
+	@echo "This will install the following to $(TOOLS_DIR)/:"
+	@echo "  - ARM GNU Toolchain $(ARM_GCC_VERSION) (~500MB)"
+	@echo "  - STM32 Arduino Core $(STM32_CORE_VERSION) (~200MB)"
+	@echo ""
+	@read -p "Do you want to proceed? [y/N] " answer; \
+	if [ "$$answer" = "y" ] || [ "$$answer" = "Y" ]; then \
+		$(MAKE) do-install-deps; \
+	else \
+		echo "Installation cancelled."; \
+	fi
+
+do-install-deps: install-toolchain install-stm32-core
+	@echo ""
+	@echo "=== Installation Complete ==="
+	@echo "You can now run 'make' to build your project."
+
+install-toolchain:
+	@if [ "$(TOOLCHAIN_EXISTS)" = "yes" ]; then \
+		echo "Toolchain already installed, skipping..."; \
+	else \
+		echo "=== Installing ARM GNU Toolchain ===" && \
+		mkdir -p $(TOOLS_DIR) && \
+		echo "Downloading $(ARM_GCC_ARCHIVE)..." && \
+		curl -L -o $(TOOLS_DIR)/$(ARM_GCC_ARCHIVE) "$(ARM_GCC_URL)" && \
+		echo "Extracting toolchain..." && \
+		tar -xf $(TOOLS_DIR)/$(ARM_GCC_ARCHIVE) -C $(TOOLS_DIR) && \
+		rm $(TOOLS_DIR)/$(ARM_GCC_ARCHIVE) && \
+		echo "Toolchain installed to $(TOOLS_DIR)/$(ARM_GCC_DIR)"; \
+	fi
+
+install-stm32-core:
+	@if [ "$(STM32_CORE_EXISTS)" = "yes" ]; then \
+		echo "STM32 Core already installed, skipping..."; \
+	else \
+		echo "=== Installing STM32 Arduino Core ===" && \
+		mkdir -p $(TOOLS_DIR) && \
+		echo "Downloading STM32 Core $(STM32_CORE_VERSION)..." && \
+		curl -L -o $(TOOLS_DIR)/stm32-core.tar.gz "$(STM32_CORE_URL)" && \
+		echo "Extracting STM32 Core..." && \
+		tar -xzf $(TOOLS_DIR)/stm32-core.tar.gz -C $(TOOLS_DIR) && \
+		rm $(TOOLS_DIR)/stm32-core.tar.gz && \
+		echo "STM32 Core installed to $(STM32_CORE)"; \
+	fi
+
+# Force reinstall (removes existing and reinstalls)
+.PHONY: reinstall-deps clean-tools
+	reinstall-deps: clean-tools install-deps
+
+clean-tools:
+	@echo "Removing tools directory..."
+	rm -rf $(TOOLS_DIR)
+
+# =============================================================================
+
+
 # ============================================================================
 # Debug helpers
 # ============================================================================
 .PHONY: print-vars
 print-vars:
+	@echo "=== Configuration ==="
+	@echo "TOOLS_DIR: $(TOOLS_DIR)"
 	@echo "TOOLCHAIN_PATH: $(TOOLCHAIN_PATH)"
 	@echo "STM32_CORE: $(STM32_CORE)"
-	@echo "CORE_A: $(CORE_A)"
+	@echo "USER_LIBS: $(USER_LIBS)"
+	@echo ""
+	@echo "=== Dependencies ==="
+	@echo "Toolchain installed: $(TOOLCHAIN_EXISTS)"
+	@echo "STM32 Core installed: $(STM32_CORE_EXISTS)"
+	@echo ""
+	@echo "=== Build ==="
+	@echo "TARGET: $(TARGET)"
 	@echo "PROJECT_OBJS: $(PROJECT_OBJS)"
-	@echo "LIB_OBJS: $(LIB_OBJS)"
+	@echo "LIB_OBJS count: $(words $(LIB_OBJS))"
 	@echo "CORE_OBJS count: $(words $(CORE_OBJS))"
+	@echo ""
+	@echo "=== Serial ==="
 	@echo "SERIAL_PORT: $(SERIAL_PORT)"
 	@echo "BAUD_RATE: $(BAUD_RATE)"
-	@echo "ARDUINO_EXE: $(ARDUINO_EXE)"
