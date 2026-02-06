@@ -1,6 +1,28 @@
 # CCK Door Sensor
 The Makefile for this project still depends on the Arduino tool chain and you will need to update the path information if you want to use it.
 
+## Setup
+```
+make install-deps && make
+```
+
+## Flashing
+* Requires `dfu-util` be installed.
+* Make sure to pull the B0 pin high
+* Press the reset button wait a second then
+```
+make upload
+```
+
+## Clean up
+```
+ make clean-tools clean
+```
+
+## How to use the Makefile
+```
+make help
+```
 
 ## Dependencies
 * https://github.com/adafruit/Adafruit_LIS3MDL
