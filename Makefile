@@ -19,6 +19,7 @@ MAKEFLAGS += -j$(shell nproc 2>/dev/null || echo 1)
 # PROJECT SETTINGS
 # =============================================================================
 OS := $(shell uname -s)
+export PATH := $(PATH):$(shell pwd)/stm32cube/bin
 
 ifeq ($(OS),Darwin)
 BASE_ARDUINO    = $(HOME)/Library/Arduino15
@@ -468,6 +469,38 @@ term:
 	@echo "Press Ctrl+A then K to exit."
 	@screen $(SERIAL_PORT) $(BAUD_RATE)
 
+
+# =============================================================================
+# Build STM32 Cube Programmer
+# =============================================================================
+CNT_MNGR ?= podman
+
+ifeq ($(OS),Darwin)
+	ARDUINO_EXE ?= open -a "Arduino IDE"
+else ifeq ($(OS),Linux)
+	ARDUINO_EXE ?= /opt/AppImages/ArduinoIDE/arduino-ide.AppImage
+endif
+
+install-CubePrgr: copy-stm32cube
+
+stm32cube:
+ifeq ($(OS),Linux)
+	$(MAKE) install-CubePrgr
+endif
+
+copy-stm32cube: build-CubePrgr
+	$(CNT_MNGR) create --name temp_container org.cirelli.containers/stm32cubeprogrammer
+	$(CNT_MNGR) cp temp_container:/app/stm32cube ./stm32cube
+	$(CNT_MNGR) rm temp_container
+
+build-CubePrgr: stm32cubeprg-lin.zip
+	$(CNT_MNGR) build --platform linux/amd64 -t org.cirelli.containers/stm32cubeprogrammer -f STM32Container .
+
+run-arduino: stm32cube
+	$(ARDUINO_EXE)
+# =============================================================================
+
+
 # ============================================================================
 # Debug helpers
 # ============================================================================
@@ -481,3 +514,4 @@ print-vars:
 	@echo "CORE_OBJS count: $(words $(CORE_OBJS))"
 	@echo "SERIAL_PORT: $(SERIAL_PORT)"
 	@echo "BAUD_RATE: $(BAUD_RATE)"
+	@echo "ARDUINO_EXE: $(ARDUINO_EXE)"
