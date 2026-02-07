@@ -2,14 +2,25 @@
 #include <STM32SD.h>
 #include <Adafruit_LSM6DSOX.h>
 #include <Adafruit_LIS3MDL.h>
+#include <Adafruit_NeoPixel.h>
+#include <stdbool.h>
 #include "buttons.h"
+#include "cck_types.h"
+#include "states.h"
+#include "doorStateMachine.h"
 
 
+#define SERIAL_BAUD_RATE 115200
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
 
 #define WRITE_DELAY 1000
 
-#define CLEAR_BTN_PIN 5
+#define NUMPIXELS         1
+
+//==== Pin out ====
+#define CLEAR_BTN_PIN       5
+#define VBAT_PIN            (A6)  // Pin for reading battery voltage
+#define BUILT_IN_PIXEL_PIN  8
 
 #define FILE_NAME "data.csv"
 
@@ -17,7 +28,8 @@
 static Adafruit_LSM6DSOX lsm6ds;
 static Adafruit_LIS3MDL lis3mdl;
 static File dataFile;
-static button_handle_t myButton;
+static button_handle_t onlyButton;
+static Adafruit_NeoPixel builtInNeo(1, BUILT_IN_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 static void buttonPress(cck_time_t);
 static void buttonUp(cck_time_t);
@@ -29,10 +41,19 @@ static void halt();
 static void print_file_list();
 static void setup_sdcard();
 static void shutdown_sdcard();
+static void setup_buttons();
 static void setup_gpio();
+static void setup_neopixels();
 static void print_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
 static void write_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
+static void setup_state_machine();
 
+
+static void setup_neopixels()
+{
+  builtInNeo.begin();
+  builtInNeo.show();  // Initialize to 'off'
+}
 
 static void setup_accel_and_mag()
 {
@@ -263,13 +284,23 @@ static void shutdown_sdcard()
     SD.end();
 }
 
+static void buttonUp(cck_time_t startTime){}
+static void buttonDown(cck_time_t startTime){}
+static void buttonPress(cck_time_t startTime)
+{
+    state_fire_event(&door_state_machine, DOOR_EVENT_BUTTON_1_PRESS, startTime);
+}
+
+static void setup_buttons() {
+    btn_initButton(&onlyButton, CLEAR_BTN_PIN, INPUT_PULLUP, buttonDown, buttonUp, buttonPress);
+    btn_addButton(&onlyButton);
+}
+
 static void setup_gpio()
 {
     pinMode(CLEAR_BTN_PIN, INPUT_PULLUP);
     pinMode(LED_BUILTIN, OUTPUT);
-
-    btn_initButton(&myButton, CLEAR_BTN_PIN, INPUT_PULLUP, buttonDown, buttonUp, buttonPress);
-    btn_addButton(&myButton);
+    setup_buttons();
 }
 
 static void print_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp)
@@ -336,21 +367,20 @@ static void toggleLED(cck_time_t _)
     digitalWrite(LED_BUILTIN, t);
 }
 
-static void buttonUp(cck_time_t startTime){}
-static void buttonDown(cck_time_t startTime){}
-static void buttonPress(cck_time_t startTime)
-{
-    toggleLED(startTime);
+static void setup_state_machine() {
+    idle_event_handlers[DOOR_EVENT_BUTTON_1_PRESS] = toggleLED;
 }
 
 void setup()
 {
-  Serial.begin(115200);
-  while (!Serial) delay(10);
+    Serial.begin(SERIAL_BAUD_RATE);
+    while (!Serial) delay(10);
 
-  setup_gpio();
-  setup_sdcard();
-  setup_accel_and_mag();
+    setup_gpio();
+    setup_sdcard();
+    setup_accel_and_mag();
+    setup_neopixels();
+    setup_state_machine();
 }
 
 void loop(void)
@@ -371,6 +401,7 @@ void loop(void)
     }
 
     btn_processButtons();
+    state_machine_run(&door_state_machine, curTime);
 
-    //delay(10);
+    delay(10);
 }
