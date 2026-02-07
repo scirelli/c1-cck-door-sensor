@@ -42,3 +42,6 @@
 build/
 stm32cube
 tools
+example/
+sdcard/
+sdcard_write/

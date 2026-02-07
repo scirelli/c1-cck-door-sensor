@@ -2,6 +2,7 @@
 #define _BUTTONS_H
 #include <stdbool.h>
 #include "Arduino.h"
+#include "cck_types.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -17,7 +18,6 @@ extern "C"
 #define BUTTON_LISTENER_UP    2
 #define BUTTON_LISTENER_TYPES 3
 
-typedef unsigned long cck_time_t;
 typedef void (*buttonActionHandler_t)(cck_time_t);
 
 typedef struct button_handle_t{
