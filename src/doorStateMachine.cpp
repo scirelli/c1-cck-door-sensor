@@ -74,8 +74,11 @@ static door_state_container_t door_states[_DOOR_STATE_COUNT] = {
             .ds = {
                 .base_state = {
                     .state_id = PRE_IDLE,
+                    .animator_fnc = pre_idle_animator,
+                    .enter_handler = pre_idle_enter,
+                    .exit_handler = pre_idle_exit,
                     .evtHandler = door_state_event_handler,
-                    .next_state = (state_t*)&door_states[IDLE]
+                    //.next_state = (state_t*)&door_states[IDLE]
                 }
             }
         }
@@ -136,10 +139,17 @@ bool door_set_exit_handle(door_states_id_t state_id, stateExitHandler_t fnc)
     return true;
 }
 
-door_state_t* get_door_state(door_states_id_t id)
+door_state_t* door_get_state(door_states_id_t id)
 {
     if(!is_valid_door_state_id(id)) return NULL;
     return &door_states[id].door_state;
+}
+
+bool door_set_next_state(door_states_id_t id, door_state_t* s_ptr)
+{
+    if(!is_valid_door_state_id(id)) return false;
+    door_states[id].generic.next_state = (state_t*)s_ptr;;
+    return true;
 }
 //===================================================================
 
@@ -172,6 +182,18 @@ static void door_state_event_handler(state_t* state_ptr, state_event_id_t evt_id
 //===================================================================
 // Pre Idle State
 //==================================================================
+static state_hndlr_status_t pre_idle_animator(state_t *s_ptr, cck_time_t t)
+{
+    return TRANSITION_OK;
+}
+static state_hndlr_status_t pre_idle_enter(state_t *s_ptr, cck_time_t t)
+{
+    return TRANSITION_OK;
+}
+static state_hndlr_status_t pre_idle_exit(state_t *s_ptr, cck_time_t t)
+{
+    return TRANSITION_OK;
+}
 //===================================================================
 
 

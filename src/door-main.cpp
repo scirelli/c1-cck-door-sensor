@@ -376,6 +376,7 @@ static void setup_state_machine() {
         Serial.println("Error failed to setup door state machine");
         return;
     }
+    //TODO: Pull graphics and such into doorStateMachine.cpp
     if(!door_set_event_handle(IDLE, DOOR_EVENT_BUTTON_1_PRESS, idle_state_action)) {
         Serial.println("Error failed to set state event handler DOOR_EVENT_BUTTON_1_PRESS");
         return;
