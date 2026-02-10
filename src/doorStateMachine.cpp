@@ -107,7 +107,7 @@ bool setup_door_state_machine(state_machine_t *sm_ptr)
 
 bool door_set_event_handle(door_states_id_t state_id, door_events_t evt_id, door_event_handler_t fnc)
 {
-    door_state_t *state_ptr = get_door_state(state_id);
+    door_state_t *state_ptr = door_get_state(state_id);
     if(!state_ptr || !is_valid_door_event_id(evt_id)) return false;
 
     state_ptr->event_handlers[evt_id] = fnc;
@@ -117,7 +117,7 @@ bool door_set_event_handle(door_states_id_t state_id, door_events_t evt_id, door
 
 bool door_set_animator_fnc(door_states_id_t state_id, stateAnimatorFnc_t fnc)
 {
-    door_state_t *state_ptr = get_door_state(state_id);
+    door_state_t *state_ptr = door_get_state(state_id);
     if(!state_ptr || !fnc) return false;
     state_ptr->base_state.animator_fnc = fnc;
     return true;
@@ -125,7 +125,7 @@ bool door_set_animator_fnc(door_states_id_t state_id, stateAnimatorFnc_t fnc)
 
 bool door_set_enter_handle(door_states_id_t state_id, stateEnterHandler_t fnc)
 {
-    door_state_t *state_ptr = get_door_state(state_id);
+    door_state_t *state_ptr = door_get_state(state_id);
     if(!state_ptr || !fnc) return false;
     state_ptr->base_state.enter_handler = fnc;
     return true;
@@ -133,7 +133,7 @@ bool door_set_enter_handle(door_states_id_t state_id, stateEnterHandler_t fnc)
 
 bool door_set_exit_handle(door_states_id_t state_id, stateExitHandler_t fnc)
 {
-    door_state_t *state_ptr = get_door_state(state_id);
+    door_state_t *state_ptr = door_get_state(state_id);
     if(!state_ptr || !fnc) return false;
     state_ptr->base_state.exit_handler = fnc;
     return true;
