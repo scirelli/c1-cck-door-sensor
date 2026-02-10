@@ -48,6 +48,7 @@ static void setup_neopixels();
 static void print_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
 static void write_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
 static void setup_state_machine();
+static void idle_state_action();
 
 
 static void setup_neopixels()
@@ -289,6 +290,7 @@ static void buttonUp(cck_time_t startTime){}
 static void buttonDown(cck_time_t startTime){}
 static void buttonPress(cck_time_t startTime)
 {
+    toggleLED(startTime);
     state_fire_event(&door_state_machine, DOOR_EVENT_BUTTON_1_PRESS, startTime);
 }
 
@@ -362,11 +364,11 @@ static void write_sensor_data(const sensors_event_t *accel, const sensors_event_
     }
 }
 
-static void toggleLED(cck_time_t _)
+static void idle_state_action(door_state_t * self, cck_time_t _)
 {
-    static bool t = LOW;
-    t = !t;
-    digitalWrite(LED_BUILTIN, t);
+    builtInNeo.clear();
+    builtInNeo.setPixelColor(0, Adafruit_NeoPixel::Color(0, 63, 0) );
+    builtInNeo.show();
 }
 
 static void setup_state_machine() {
@@ -374,12 +376,15 @@ static void setup_state_machine() {
         Serial.println("Error failed to setup door state machine");
         return;
     }
-    if(!door_set_event_handle(IDLE, DOOR_EVENT_BUTTON_1_PRESS, toggleLED)) {
+    if(!door_set_event_handle(IDLE, DOOR_EVENT_BUTTON_1_PRESS, idle_state_action)) {
         Serial.println("Error failed to set state event handler DOOR_EVENT_BUTTON_1_PRESS");
         return;
     }
 }
 
+//==========================================================================
+// Main setup and loop
+//==========================================================================
 void setup()
 {
     Serial.begin(SERIAL_BAUD_RATE);
@@ -414,3 +419,15 @@ void loop(void)
 
     delay(10);
 }
+//==========================================================================
+
+//==========================================================================
+// Utils
+//==========================================================================
+static void toggleLED(cck_time_t _)
+{
+    static bool t = LOW;
+    t = !t;
+    digitalWrite(LED_BUILTIN, t);
+}
+//==========================================================================

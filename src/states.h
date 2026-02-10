@@ -31,18 +31,21 @@ typedef enum {
     ACTION_FAILURE
 } state_evt_act_status_t;
 
+//Use to give you states IDs
 typedef int8_t state_id_t;
+// State event types, create your own types and use it's ID to map to a function.
 typedef int8_t state_event_id_t;
+//Forward declaration of a basic state struct.
 typedef struct state_t state_t;
 
 /*
- * stateEventAction_t:
+ * stateAnimatorFnc_t:
  * Will either immediately handle the event and set the next state.
  * Or not set the next state but set the event action to run. This action is meant to be run each frame indefinitely while in the state.
  * The idea is event action is something that runs over time or takes a long time to run. Say fading pixels.
  * I will have to think this through as action will need to keep it's state.
  */
-typedef state_evt_act_status_t (*stateEventAction_t)(state_t*, cck_time_t);
+typedef state_evt_act_status_t (*stateAnimatorFnc_t)(state_t*, cck_time_t);
 /*
  * stateEnterHandler_t
  * Function to allow something to happen when entering a state. Maybe use for something like auto-actions/auto-event.
@@ -56,14 +59,15 @@ typedef state_hndlr_status_t (*stateEnterHandler_t)(state_t*, cck_time_t); //Sta
 typedef state_hndlr_status_t (*stateExitHandler_t)(state_t*, cck_time_t); //Status currently ignored
 /*
  * stateEventHandler_t
- * sets the state's event handler. This handler will be called when events are fired on the state machine.
+ * Sets the state's event handler. This handler will be called when events are fired on the state machine.
+ * Use this function to map state_event_id_t to functions.
  */
 typedef void (*stateEventHandler_t)(state_t*, state_event_id_t, cck_time_t);
 
 struct state_t{
     state_id_t state_id;
     cck_time_t enter_time;
-    stateEventAction_t event_action;
+    stateAnimatorFnc_t animator_fnc;
     stateEnterHandler_t enter_handler;
     stateExitHandler_t exit_handler;
     stateEventHandler_t evtHandler;
@@ -76,8 +80,21 @@ typedef struct {
 
 static state_trans_status_t state_transition(state_machine_t *, state_t *next_state, cck_time_t t);
 
+/*
+ * state_init_machine
+ * Initialize the state machine with it's first state.
+ */
 bool state_init_machine(state_machine_t*, state_t *);
+/*
+ * state_machine_run
+ * This function goes in the main loop, allows states' action functions continuously.
+ * TODO: Will refactor this so that the state table can call registered functions on timeouts or intervals.
+ */
 state_proc_status_t state_machine_run(state_machine_t *, cck_time_t);
+/*
+ * state_fire_event
+ * Fires and event on the state machine, allowing the current state to process events.
+ */
 bool state_fire_event(state_machine_t *, state_event_id_t, cck_time_t);
 
 #ifdef __cplusplus
