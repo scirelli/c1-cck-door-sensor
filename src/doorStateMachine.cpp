@@ -68,6 +68,8 @@ TODO: Current plan
 │ * btn-prs: next state Pre-Idle       │
 └──────────────────────────────────────┘
 */
+static door_sm_t door_sm;
+
 static door_state_container_t door_states[_DOOR_STATE_COUNT] = {
     [PRE_IDLE] = {
         .pre_idle = {
@@ -99,10 +101,22 @@ static door_state_container_t door_states[_DOOR_STATE_COUNT] = {
 //===================================================================
 // Door SM State functions
 //==================================================================
-bool setup_door_state_machine(state_machine_t *sm_ptr)
+bool door_init_state_machine(door_sm_cfg_t config)
 {
-    if(!sm_ptr) return false;
-    return state_init_machine(sm_ptr, &door_states[IDLE].generic);
+    if(!config) return false;
+    door_sm.cfg = config;
+    return state_init_machine(&door_sm.sm, &door_states[IDLE].generic);
+}
+
+bool door_run_state_machine(cck_time_t t)
+{
+    state_machine_run(&door_sm.sm, curTime);
+    return true; //TODO: implement
+}
+
+bool door_fire_event(state_event_id_t evt_id, cck_time_t t)
+{
+    return state_fire_event(&door_sm.sm, evt_id, t);
 }
 
 bool door_set_event_handle(door_states_id_t state_id, door_events_t evt_id, door_event_handler_t fnc)

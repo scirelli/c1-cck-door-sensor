@@ -19,11 +19,13 @@
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
 
 #define WRITE_DELAY 1000
+#define DISPLAY_PRECISION   1
 
 #define NUMPIXELS         1
 
 #define I2C_LIS3MDL_ADDRESS 0x1E
 #define I2C_LSM6DS_ADDRESS  0x6A // D0 Pull high for 0x6B
+#define I2C_SH110X_ADDRESS  0x3C // Address 0x3C default
 
 //==== Pin out ====
 //#define CLEAR_BTN_PIN       5
@@ -40,10 +42,11 @@ static Adafruit_LIS3MDL lis3mdl;
 static File dataFile;
 static button_handle_t btnA, btnB, btnC;
 static Adafruit_NeoPixel builtInNeo(1, BUILT_IN_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
-static state_machine_t door_state_machine;
-Adafruit_SH1107 display = Adafruit_SH1107(64, 128, &Wire);
+static Adafruit_SH1107 display = Adafruit_SH1107(64, 128, &Wire);
 
-static void buttonPress(cck_time_t);
+static void buttonAPress(cck_time_t);
+static void buttonBPress(cck_time_t);
+static void buttonCPress(cck_time_t);
 static void buttonUp(cck_time_t);
 static void buttonDown(cck_time_t);
 static void toggleLED(cck_time_t);
@@ -56,8 +59,9 @@ static void shutdown_sdcard();
 static void setup_buttons();
 static void setup_gpio();
 static void setup_neopixels();
-static void print_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
+static void log_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
 static void write_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
+static void display_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
 static void setup_state_machine();
 static void idle_state_action();
 static void setup_display();
@@ -74,7 +78,7 @@ static void setup_accel_and_mag()
   Serial.println("Adafruit LSM6DS+LIS3MDL test!");
   bool lsm6ds_success, lis3mdl_success;
 
-  lsm6ds_success = lsm6ds.begin_I2C();
+  lsm6ds_success = lsm6ds.begin_I2C(I2C_LSM6DS_ADDRESS);
   lis3mdl_success = lis3mdl.begin_I2C(I2C_LIS3MDL_ADDRESS);
 
   if (!lsm6ds_success){
@@ -258,17 +262,6 @@ static void setup_accel_and_mag()
                           true); // enabled!
 }
 
-static void halt(const char reason[])
-{
-    Serial.println(reason);
-    while(1);
-}
-
-static void halt()
-{
-    while(1);
-}
-
 static void print_file_list()
 {
   File root = SD.openRoot();
@@ -300,20 +293,30 @@ static void shutdown_sdcard()
 
 static void buttonUp(cck_time_t startTime){}
 static void buttonDown(cck_time_t startTime){}
-static void buttonPress(cck_time_t startTime)
+static void buttonAPress(cck_time_t startTime)
 {
     toggleLED(startTime);
-    state_fire_event(&door_state_machine, DOOR_EVENT_BUTTON_1_PRESS, startTime);
+    door_fire_event(DOOR_EVENT_BUTTON_1_PRESS, startTime);
+}
+static void buttonBPress(cck_time_t startTime)
+{
+    toggleLED(startTime);
+    door_fire_event(DOOR_EVENT_BUTTON_2_PRESS, startTime);
+}
+static void buttonCPress(cck_time_t startTime)
+{
+    toggleLED(startTime);
+    door_fire_event(DOOR_EVENT_BUTTON_3_PRESS, startTime);
 }
 
 static void setup_buttons()
 {
-    btn_initButton(&btnA, BUTTON_A, INPUT_PULLUP, buttonDown, buttonUp, buttonPress);
-    btn_addButton(&btnA);
-    btn_initButton(&btnB, BUTTON_B, INPUT_PULLUP, buttonDown, buttonUp, buttonPress);
-    btn_addButton(&btnB);
-    btn_initButton(&btnC, BUTTON_C, INPUT_PULLUP, buttonDown, buttonUp, buttonPress);
-    btn_addButton(&btnC);
+    btn_initButton(&btnA, BUTTON_A, INPUT_PULLUP, buttonDown, buttonUp, buttonAPress);
+    if(!btn_addButton(&btnA)) Serial.println("Could not add BUTTON_A");
+    btn_initButton(&btnB, BUTTON_B, INPUT_PULLUP, buttonDown, buttonUp, buttonBPress);
+    if(!btn_addButton(&btnB)) Serial.println("Could not add BUTTON_B");
+    btn_initButton(&btnC, BUTTON_C, INPUT_PULLUP, buttonDown, buttonUp, buttonCPress);
+    if(!btn_addButton(&btnC)) Serial.println("Could not add BUTTON_C");
 }
 
 static void setup_gpio()
@@ -322,7 +325,7 @@ static void setup_gpio()
     setup_buttons();
 }
 
-static void print_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp)
+static void log_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp)
 {
   // Display the results (acceleration is measured in m/s^2)
   Serial.print("\t\tAccel X: ");
@@ -379,6 +382,46 @@ static void write_sensor_data(const sensors_event_t *accel, const sensors_event_
     }
 }
 
+static void display_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp)
+{
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.setTextSize(1);
+
+  // Display the results (acceleration is measured in m/s^2)
+  display.print("AX: ");                                     // 3
+  display.print(accel->acceleration.x, DISPLAY_PRECISION);  // 3
+  display.print(" Y: ");                                    // 4
+  display.print(accel->acceleration.y, DISPLAY_PRECISION);  // 3
+  display.print(" Z: ");                                    // 4
+  display.println(accel->acceleration.z, DISPLAY_PRECISION);  // 3
+  //display.println(" m/s^2 ");                               // 7
+
+  // Display the results (rotation is measured in rad/s)
+  display.print("GX: ");
+  display.print(gyro->gyro.x, DISPLAY_PRECISION);
+  display.print(" Y: ");
+  display.print(gyro->gyro.y, DISPLAY_PRECISION);
+  display.print(" Z: ");
+  display.println(gyro->gyro.z, DISPLAY_PRECISION);
+  //display.println(" r/s");
+
+  // Display the results (magnetic field is measured in uTesla)
+  display.print("MX: ");
+  display.print(mag->magnetic.x, DISPLAY_PRECISION);
+  display.print(" Y: ");
+  display.print(mag->magnetic.y, DISPLAY_PRECISION);
+  display.print(" Z: ");
+  display.println(mag->magnetic.z, DISPLAY_PRECISION);
+  //display.println(" uT ");
+
+  display.print("Temp: ");
+  display.print(temp->temperature);
+  display.print(" C");
+
+  display.display();
+}
+
 static void idle_state_action(door_state_t * self, cck_time_t _)
 {
     builtInNeo.clear();
@@ -387,7 +430,14 @@ static void idle_state_action(door_state_t * self, cck_time_t _)
 }
 
 static void setup_state_machine() {
-    if(!setup_door_state_machine(&door_state_machine)) {
+    door_sm_cfg_t door_sm_config = {
+        .lsm6ds     = &lsm6ds,
+        .lis3mdl    = &lis3mdl,
+        .dataFile   = &dataFile,
+        .builtInNeo = &builtInNeo,
+        .display    = &display
+    };
+    if(!door_init_state_machine(door_sm_config)) {
         Serial.println("Error failed to setup door state machine");
         return;
     }
@@ -402,13 +452,12 @@ static void setup_display()
 {
   Serial.println("128x64 OLED FeatherWing test");
   delay(250); // wait for the OLED to power up
-  display.begin(0x3C, true); // Address 0x3C default
+  display.begin(I2C_SH110X_ADDRESS, true);
 
   Serial.println("OLED begun");
 
   // Show image buffer on the display hardware.
-  // Since the buffer is intialized with an Adafruit splashscreen
-  // internally, this will display the splashscreen.
+  // Since the buffer is intialized with an Adafruit splashscreen internally, this will display the splashscreen.
   display.display();
   delay(1000);
 
@@ -417,18 +466,12 @@ static void setup_display()
   display.display();
 
   display.setRotation(1);
-  Serial.println("Button test");
 
-  pinMode(BUTTON_A, INPUT_PULLUP);
-  pinMode(BUTTON_B, INPUT_PULLUP);
-  pinMode(BUTTON_C, INPUT_PULLUP);
-
-  // text display tests
-  display.setTextSize(1);
+  display.setTextSize(2);
   display.setTextColor(SH110X_WHITE);
   display.setCursor(0,0);
-  display.print("Connecting to SSID\n'adafruit':");
-  display.print("connected!");
+  display.println("Crash Detector");
+  display.setTextSize(1);
   display.display(); // actually display all of the above
 }
 
@@ -461,12 +504,13 @@ void loop(void)
         // Get new normalized sensor events
         lsm6ds.getEvent(&accel, &gyro, &temp);
         lis3mdl.getEvent(&mag);
-        print_sensor_data(&accel, &gyro, &mag, &temp);
+        log_sensor_data(&accel, &gyro, &mag, &temp);
+        display_sensor_data(&accel, &gyro, &mag, &temp);
         write_sensor_data(&accel, &gyro, &mag, &temp);
     }
 
     btn_processButtons();
-    state_machine_run(&door_state_machine, curTime);
+    door_run_state_machine(curTime);
 
     delay(10);
 }
@@ -475,6 +519,17 @@ void loop(void)
 //==========================================================================
 // Utils
 //==========================================================================
+static void halt(const char reason[])
+{
+    Serial.println(reason);
+    while(1);
+}
+
+static void halt()
+{
+    while(1);
+}
+
 static void toggleLED(cck_time_t _)
 {
     static bool t = LOW;

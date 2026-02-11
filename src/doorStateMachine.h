@@ -42,7 +42,9 @@ typedef enum:state_id_t {
  */
 typedef enum: state_event_id_t  {
     DOOR_EVENT_BUTTON_1_PRESS = 0,
-    AUTO_TRANSITION,
+    DOOR_EVENT_BUTTON_2_PRESS,
+    DOOR_EVENT_BUTTON_3_PRESS,
+    DOOR_AUTO_TRANSITION,
     _DOOR_EVENT_COUNT
 } door_events_t;
 
@@ -86,9 +88,22 @@ typedef union {
     door_record_state_t       record;
 } door_state_container_t;
 
+typedef struct {
+    Adafruit_LSM6DSOX *lsm6ds;
+    Adafruit_LIS3MDL  *lis3mdl;
+    File              *dataFile;
+    Adafruit_NeoPixel *builtInNeo;
+    Adafruit_SH1107   *display;
+} door_sm_cfg_t;
 
+typedef struct {
+    state_machine_t sm;
+    door_sm_cfg_t cfg;
+} door_sm_t;
 
-bool setup_door_state_machine(state_machine_t *);
+bool door_init_tate_machine(door_sm_cfg_t*);
+bool door_run_state_machine(cck_time_t);
+bool door_fire_event(state_event_id_t, cck_time_t);
 bool door_set_event_handle(door_states_id_t, door_events_t, door_event_handler_t);
 bool door_set_animator_fnc(door_states_id_t, stateAnimatorFnc_t);
 bool door_set_enter_handle(door_states_id_t, stateEnterHandler_t);
