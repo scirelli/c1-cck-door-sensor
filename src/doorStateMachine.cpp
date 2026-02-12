@@ -69,6 +69,17 @@ TODO: Current plan
 └──────────────────────────────────────┘
 */
 static door_sm_t door_sm;
+const char* doorStateNames[] = {
+#define X(name) #name,
+    DOOR_STATES
+#undef X
+};
+const char* doorEventNames[] = {
+#define X(name) #name,
+    DOOR_EVENTS
+#undef X
+};
+
 
 static door_state_container_t door_states[_DOOR_STATE_COUNT] = {
     [PRE_IDLE] = {
@@ -79,11 +90,13 @@ static door_state_container_t door_states[_DOOR_STATE_COUNT] = {
                     .animator_fnc = pre_idle_animator,
                     .enter_handler = pre_idle_enter,
                     .exit_handler = pre_idle_exit,
-                    .evtHandler = door_state_event_handler,
+                    .evtHandler = door_state_event_handler
                 },
                 .event_handlers = {
                     [DOOR_EVENT_BUTTON_1_PRESS] = pre_idle_btn1_prs_hndler,
-                    [DOOR_AUTO_TRANSITION] = door_auto_evt_hndler,
+                    [DOOR_EVENT_BUTTON_2_PRESS] = NULL,
+                    [DOOR_EVENT_BUTTON_3_PRESS] = NULL,
+                    [DOOR_AUTO_TRANSITION] = door_auto_evt_hndler
                 }
             }
         }
@@ -94,12 +107,12 @@ static door_state_container_t door_states[_DOOR_STATE_COUNT] = {
                 .base_state = {
                     .state_id = IDLE,
                     .animator_fnc = idle_animator,
-                    .evtHandler = door_state_event_handler,
-                    .next_state = NULL
+                    .evtHandler = door_state_event_handler
                 },
                 .event_handlers = {
                     [DOOR_EVENT_BUTTON_1_PRESS] = idle_btn1_prs_hndler,
-                    [DOOR_AUTO_TRANSITION] = door_auto_evt_hndler,
+                    [DOOR_EVENT_BUTTON_2_PRESS] = NULL,
+                    [DOOR_EVENT_BUTTON_3_PRESS] = NULL
                 }
             },
         }
@@ -211,28 +224,30 @@ static void door_auto_evt_hndler(door_state_t *self, cck_time_t t, void *context
 //===================================================================
 // Pre Idle State
 //==================================================================
-static state_hndlr_status_t pre_idle_animator(state_t *s_ptr, cck_time_t t)
+static state_hndlr_status_t pre_idle_animator(state_t *self_ptr, cck_time_t t)
 {
     //TODO: Blink neopixel for 5s before moving to idle
+    print_state_name_every_x(self_ptr, t);
     return TRANSITION_OK;
 }
-static state_hndlr_status_t pre_idle_enter(state_t *s_ptr, cck_time_t t)
+static state_hndlr_status_t pre_idle_enter(state_t *self_ptr, cck_time_t t)
 {
     //TODO: init state data.
     return TRANSITION_OK;
 }
-static state_hndlr_status_t pre_idle_exit(state_t *s_ptr, cck_time_t t)
+static state_hndlr_status_t pre_idle_exit(state_t *self_ptr, cck_time_t t)
 {
     //TODO: Clean up state data.
     return TRANSITION_OK;
 }
-static void pre_idle_btn1_prs_hndler(door_state_t *self, cck_time_t t, void *context)
+static void pre_idle_btn1_prs_hndler(door_state_t *self_ptr, cck_time_t t, void *context)
 {
-    state_t *bs = &door_get_state(IDLE)->base_state;
-    if(!bs) return;
-    door_fire_event(DOOR_AUTO_TRANSITION, t, &(door_auto_evt_ctx_t){
-        .next_state = bs
-    });
+    door_state_t *ds = door_get_state(IDLE);
+    if(!ds) return;
+    door_auto_evt_ctx_t d_evt = {
+        .next_state = &ds->base_state
+    };
+    door_fire_event(DOOR_AUTO_TRANSITION, t, &d_evt);
 }
 //===================================================================
 
@@ -241,11 +256,12 @@ static void pre_idle_btn1_prs_hndler(door_state_t *self, cck_time_t t, void *con
 //===================================================================
 // Idle State
 //==================================================================
-static state_hndlr_status_t idle_animator(state_t *self, cck_time_t _)
+static state_hndlr_status_t idle_animator(state_t *self_ptr, cck_time_t t)
 {
     door_sm.cfg.builtInNeo->clear();
     door_sm.cfg.builtInNeo->setPixelColor(0, Adafruit_NeoPixel::Color(0, 31, 0) );
     door_sm.cfg.builtInNeo->show();
+    print_state_name_every_x(self_ptr, t);
     return TRANSITION_OK;
 }
 
@@ -355,5 +371,33 @@ static void display_sensor_data(const sensors_event_t *accel, const sensors_even
   display.print(" C");
 
   display.display();
+}
+static void print_state_name(door_states_id_t state_id)
+{
+    if(!is_valid_door_state_id(state_id)) {
+        Serial.println("Invalid state id");
+    }else {
+        Serial.println(doorStateNames[state_id]);
+    }
+}
+static void print_door_event_name(door_events_t evt_id)
+{
+    if(!is_valid_door_event_id(evt_id)) {
+        Serial.println("Invalid door event id");
+    }else {
+        Serial.println(doorEventNames[evt_id]);
+    }
+}
+
+static void print_state_name_every_x(state_t *s_ptr, cck_time_t t, cck_time_t x)
+{
+    static unsigned long prevTime = 0;
+    unsigned long elapTime = t - prevTime;
+    if(elapTime > x) {
+        prevTime = t;
+        Serial.print("In ");
+        Serial.print(doorStateNames[s_ptr->state_id]);
+        Serial.println(" state");
+    }
 }
 //===================================================================

@@ -39,26 +39,35 @@ typedef void (*door_event_handler_t)(door_state_t*, cck_time_t, void*);
 //   void *params;
 //} door_event_handler_t;
 
+#define DOOR_STATES \
+    X(PRE_IDLE) \
+    X(IDLE) \
+    X(PRE_NEW_FILE) \
+    X(NEW_FILE) \
+    X(PRE_RECORD) \
+    X(RECORD) \
+    X(_DOOR_STATE_COUNT)
+
 typedef enum:state_id_t {
-    PRE_IDLE = 0,
-    IDLE,
-    PRE_NEW_FILE,
-    NEW_FILE,
-    PRE_RECORD,
-    RECORD,
-    _DOOR_STATE_COUNT
+#define X(name) name,
+    DOOR_STATES
+#undef X
 } door_states_id_t;
 
 /*
  * Events this door SM can handle.
  */
+#define DOOR_EVENTS \
+    X(DOOR_EVENT_BUTTON_1_PRESS) \
+    X(DOOR_EVENT_BUTTON_2_PRESS) \
+    X(DOOR_EVENT_BUTTON_3_PRESS) \
+    X(DOOR_AUTO_TRANSITION) \
+    X(DOOR_SENSOR_READING) \
+    X(_DOOR_EVENT_COUNT)
 typedef enum: state_event_id_t  {
-    DOOR_EVENT_BUTTON_1_PRESS = 0,
-    DOOR_EVENT_BUTTON_2_PRESS,
-    DOOR_EVENT_BUTTON_3_PRESS,
-    DOOR_AUTO_TRANSITION,
-    DOOR_SENSOR_READING,
-    _DOOR_EVENT_COUNT
+#define X(name) name,
+    DOOR_EVENTS
+#undef X
 } door_events_t;
 
 struct  door_state_t {
@@ -145,6 +154,9 @@ static void door_auto_evt_hndler(door_state_t *self, cck_time_t t, void *context
 static void log_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
 static void write_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
 static void display_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
+static void print_door_event_name(door_events_t evt_id);
+static void print_state_name(door_states_id_t state_id);
+static void print_state_name_every_x(state_t*, cck_time_t, cck_time_t x = 1000L);
 
 
 // ==== Pre-Idle ====
