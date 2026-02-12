@@ -117,7 +117,7 @@ bool door_run_state_machine(cck_time_t t)
     return true; //TODO: implement
 }
 
-bool door_fire_event(state_event_id_t evt_id, cck_time_t t, void* context = NULL)
+bool door_fire_event(state_event_id_t evt_id, cck_time_t t, void *context)
 {
     return state_fire_event(&door_sm.sm, evt_id, t, context);
 }
@@ -220,9 +220,10 @@ static state_hndlr_status_t pre_idle_exit(state_t *s_ptr, cck_time_t t)
 //==================================================================
 static state_hndlr_status_t idle_animator(state_t *self, cck_time_t _)
 {
-    door_sm.builtInNeo.clear();
-    door_sm.builtInNeo.setPixelColor(0, Adafruit_NeoPixel::Color(0, 63, 0) );
-    door_sm.builtInNeo.show();
+    door_sm.cfg.builtInNeo->clear();
+    door_sm.cfg.builtInNeo->setPixelColor(0, Adafruit_NeoPixel::Color(0, 63, 0) );
+    door_sm.cfg.builtInNeo->show();
+    return TRANSITION_OK;
 }
 
 static void idle_btn1_prs_hndler(door_state_t *self, cck_time_t _, void *context)
@@ -272,21 +273,21 @@ static void log_sensor_data(const sensors_event_t *accel, const sensors_event_t 
 
 static void write_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp)
 {
-    if (door_sm.dataFile) {
+    if (door_sm.cfg.dataFile) {
         // Accel X m/s^2
-        door_sm.dataFile.print(accel->acceleration.x, 4); dataFile.print(",");
+        door_sm.cfg.dataFile->print(accel->acceleration.x, 4); door_sm.cfg.dataFile->print(",");
         // Accel Y m/s^2
-        door_sm.dataFile.print(accel->acceleration.y, 4); dataFile.print(",");
+        door_sm.cfg.dataFile->print(accel->acceleration.y, 4); door_sm.cfg.dataFile->print(",");
         // Accel Z m/s^2
-        door_sm.dataFile.print(accel->acceleration.z, 4); dataFile.print(",");
+        door_sm.cfg.dataFile->print(accel->acceleration.z, 4); door_sm.cfg.dataFile->print(",");
         // Gyro  X rad/s
-        door_sm.dataFile.print(gyro->gyro.x, 4); dataFile.print(",");
+        door_sm.cfg.dataFile->print(gyro->gyro.x, 4); door_sm.cfg.dataFile->print(",");
         // Gyro Y rad/s
-        door_sm.dataFile.print(gyro->gyro.y, 4); dataFile.print(",");
+        door_sm.cfg.dataFile->print(gyro->gyro.y, 4); door_sm.cfg.dataFile->print(",");
         // Gyro Z rad/s
-        door_sm.dataFile.print(gyro->gyro.z, 4);
+        door_sm.cfg.dataFile->print(gyro->gyro.z, 4);
 
-        door_sm.dataFile.flush();
+        door_sm.cfg.dataFile->flush();
     } else {
         Serial.print("error on file handle");
     }
@@ -294,7 +295,7 @@ static void write_sensor_data(const sensors_event_t *accel, const sensors_event_
 
 static void display_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp)
 {
-    Adafruit_SH1107 display = *door_sm.display;
+    Adafruit_SH1107 display = *door_sm.cfg.display;
   display.clearDisplay();
   display.setCursor(0,0);
   display.setTextSize(1);

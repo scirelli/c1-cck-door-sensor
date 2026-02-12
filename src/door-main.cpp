@@ -19,7 +19,6 @@
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
 
 #define WRITE_DELAY 1000
-#define DISPLAY_PRECISION   1
 
 #define NUMPIXELS         1
 
@@ -381,6 +380,7 @@ void loop(void)
       .mag = &mag,
       .temp = &temp
     };
+    cck_time_t curTime = millis();
     //static unsigned long prevTime = 0;
 
 
@@ -388,12 +388,11 @@ void loop(void)
     lis3mdl.getEvent(&mag);
     door_fire_event(
         DOOR_SENSOR_READING,
-        millis(),
+        curTime,
         &sensor_ctx_ptr
     );
     btn_processButtons();
     door_run_state_machine(curTime);
-
 
     /*
     unsigned long curTime = millis();

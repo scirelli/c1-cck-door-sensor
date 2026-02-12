@@ -21,6 +21,8 @@ extern "C"
 {
 #endif
 
+#define DISPLAY_PRECISION   1
+
 typedef struct door_state_t              door_state_t;
 typedef struct door_pre_idle_state_t     door_pre_idle_state_t;
 typedef struct door_idle_state_t         door_idle_state_t;
@@ -109,9 +111,9 @@ typedef struct {
 typedef struct {
     const Adafruit_LSM6DSOX *lsm6ds;
     const Adafruit_LIS3MDL  *lis3mdl;
-    const File              *dataFile;
-    const Adafruit_NeoPixel *builtInNeo;
-    const Adafruit_SH1107   *display;
+    File              *dataFile;
+    Adafruit_NeoPixel *builtInNeo;
+    Adafruit_SH1107   *display;
 } door_sm_cfg_t;
 
 typedef struct {
@@ -119,9 +121,9 @@ typedef struct {
     door_sm_cfg_t cfg;
 } door_sm_t;
 
-bool door_init_tate_machine(door_sm_cfg_t*);
+bool door_init_state_machine(door_sm_cfg_t);
 bool door_run_state_machine(cck_time_t);
-bool door_fire_event(state_event_id_t, cck_time_t, void*);
+bool door_fire_event(state_event_id_t, cck_time_t, void* context=NULL);
 bool door_set_event_handle(door_states_id_t, door_events_t, door_event_handler_t);
 bool door_set_animator_fnc(door_states_id_t, stateAnimatorFnc_t);
 bool door_set_enter_handle(door_states_id_t, stateEnterHandler_t);
