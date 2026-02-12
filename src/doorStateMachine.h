@@ -2,7 +2,17 @@
 #define _DOORSTATEMACHINE_H
 #include <stdbool.h>
 #include <stddef.h>
-#include "Arduino.h"
+#include <Arduino.h>
+#include <STM32SD.h>
+#include <Adafruit_LSM6DSOX.h>
+#include <Adafruit_LIS3MDL.h>
+#include <Adafruit_NeoPixel.h>
+#include <stdbool.h>
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SH110X.h>
+
 #include "cck_types.h"
 #include "states.h"
 
@@ -11,20 +21,17 @@ extern "C"
 {
 #endif
 
-#define STATE_PAUSE                -1
-#define STATE_ERROR                 0
-#define STATE_PRE_IDLE              1
-#define STATE_IDLE                  2
-#define STATE_PRE_NEW_FILE          3
-#define STATE_NEW_FILE              4
-#define STATE_PRE_READ_SENSORS      5
-#define STATE_READ_SENSORS          6
-#define STATE_TEST                  9
+#define DISPLAY_PRECISION   1
 
-#define STATE_ERROR_NONE 20
-#define STATE_ERROR_TEST 21
+typedef struct door_state_t              door_state_t;
+typedef struct door_pre_idle_state_t     door_pre_idle_state_t;
+typedef struct door_idle_state_t         door_idle_state_t;
+typedef struct door_pre_new_file_state_t door_pre_new_file_state_t;
+typedef struct door_new_file_state_t     door_new_file_state_t;
+typedef struct door_pre_record_state_t   door_pre_record_state_t;
+typedef struct door_record_state_t       door_record_state_t;
 
-typedef void (*door_event_handler_t)(cck_time_t);
+typedef void (*door_event_handler_t)(door_state_t*, cck_time_t, void*);
 
 //typedef void (*door_event_handler_fnc_t)(cck_time_t);
 //typedef struct {
@@ -32,33 +39,140 @@ typedef void (*door_event_handler_t)(cck_time_t);
 //   void *params;
 //} door_event_handler_t;
 
+#define DOOR_STATES \
+    X(PRE_IDLE) \
+    X(IDLE) \
+    X(PRE_NEW_FILE) \
+    X(NEW_FILE) \
+    X(PRE_RECORD) \
+    X(RECORD) \
+    X(_DOOR_STATE_COUNT)
+
 typedef enum:state_id_t {
-    PRE_IDLE = 0,
-    IDLE,
-    PRE_NEW_FILE,
-    NEW_FILE,
-    PRE_READ_SENSORS,
-    READ_SENSORS,
-    _DOOR_STATE_COUNT
+#define X(name) name,
+    DOOR_STATES
+#undef X
 } door_states_id_t;
 
+/*
+ * Events this door SM can handle.
+ */
+#define DOOR_EVENTS \
+    X(DOOR_EVENT_BUTTON_1_PRESS) \
+    X(DOOR_EVENT_BUTTON_2_PRESS) \
+    X(DOOR_EVENT_BUTTON_3_PRESS) \
+    X(DOOR_AUTO_TRANSITION) \
+    X(DOOR_SENSOR_READING) \
+    X(_DOOR_EVENT_COUNT)
 typedef enum: state_event_id_t  {
-    DOOR_EVENT_BUTTON_1_PRESS = 0,
-    _DOOR_EVENT_COUNT
+#define X(name) name,
+    DOOR_EVENTS
+#undef X
 } door_events_t;
 
-typedef struct {
-    state_t state;
+struct  door_state_t {
+    state_t base_state;
     door_event_handler_t event_handlers[_DOOR_EVENT_COUNT];
-} door_state_t;
+};
 
-bool setup_door_state_machine(state_machine_t *);
+struct door_pre_idle_state_t {
+    door_state_t ds;
+};
+
+struct door_idle_state_t {
+    door_state_t ds;
+};
+
+struct door_pre_new_file_state_t {
+    door_state_t ds;
+};
+
+struct door_new_file_state_t  {
+    door_state_t ds;
+};
+
+struct door_pre_record_state_t  {
+    door_state_t ds;
+};
+
+struct door_record_state_t  {
+    door_state_t ds;
+};
+
+typedef union {
+    state_t                   generic;
+    door_state_t              door_state;
+    door_pre_idle_state_t     pre_idle;
+    door_idle_state_t         idle;
+    door_pre_new_file_state_t pre_new_file;
+    door_new_file_state_t     new_file;
+    door_pre_record_state_t   pre_record;
+    door_record_state_t       record;
+} door_state_container_t;
+
+typedef struct {
+    const sensors_event_t *accel;
+    const sensors_event_t *gyro;
+    const sensors_event_t *mag;
+    const sensors_event_t *temp;
+} door_sensor_evt_ctx_t;
+
+typedef struct {
+   state_t* next_state;
+} door_auto_evt_ctx_t;
+
+typedef struct {
+    const Adafruit_LSM6DSOX *lsm6ds;
+    const Adafruit_LIS3MDL  *lis3mdl;
+    File              *dataFile;
+    Adafruit_NeoPixel *builtInNeo;
+    Adafruit_SH1107   *display;
+} door_sm_cfg_t;
+
+typedef struct {
+    state_machine_t sm;
+    door_sm_cfg_t cfg;
+} door_sm_t;
+
+bool door_init_state_machine(door_sm_cfg_t);
+bool door_run_state_machine(cck_time_t);
+bool door_fire_event(state_event_id_t, cck_time_t, void* context=NULL);
 bool door_set_event_handle(door_states_id_t, door_events_t, door_event_handler_t);
+bool door_set_animator_fnc(door_states_id_t, stateAnimatorFnc_t);
+bool door_set_enter_handle(door_states_id_t, stateEnterHandler_t);
+bool door_set_exit_handle(door_states_id_t, stateExitHandler_t);
+door_state_t* door_get_state(door_states_id_t);
+bool door_set_next_state(door_states_id_t, door_state_t*);
 
 
-static void door_state_event_handler(state_t* state_ptr, state_event_id_t evt, cck_time_t t);
+
+static void door_state_event_handler(state_t* state_ptr, state_event_id_t evt, cck_time_t t, void*);
 static bool is_valid_door_state_id(door_states_id_t);
 static bool is_valid_door_event_id(door_events_t);
+static void door_auto_evt_hndler(door_state_t *self, cck_time_t t, void *context);
+
+static void log_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
+static void write_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
+static void display_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
+static void print_door_event_name(door_events_t evt_id);
+static void print_state_name(door_states_id_t state_id);
+static void print_state_name_every_x(state_t*, cck_time_t, cck_time_t x = 1000L);
+
+
+// ==== Pre-Idle ====
+static state_hndlr_status_t pre_idle_animator(state_t*, cck_time_t);
+static state_hndlr_status_t pre_idle_enter(state_t*, cck_time_t);
+static state_hndlr_status_t pre_idle_exit(state_t*, cck_time_t);
+static void pre_idle_btn1_prs_hndler(door_state_t *self, cck_time_t _, void *context);
+static void pre_idle_auto_evt_hndler(door_state_t *self, cck_time_t t, void *context);
+// ==================
+
+
+// ==== Idle ====
+static state_hndlr_status_t idle_animator(state_t*, cck_time_t);
+static void idle_btn1_prs_hndler(door_state_t *self, cck_time_t _, void *context);
+// ==================
+
 
 #ifdef __cplusplus
 }

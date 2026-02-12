@@ -30,6 +30,8 @@ DEP_REPOS := \
 	Adafruit_BusIO::https://github.com/adafruit/Adafruit_BusIO.git:: \
 	Adafruit_Unified_Sensor::https://github.com/adafruit/Adafruit_Sensor.git:: \
 	Adafruit_NeoPixel::https://github.com/adafruit/Adafruit_NeoPixel.git:: \
+	Adafruit_GFX::https://github.com/adafruit/Adafruit-GFX-Library.git:: \
+	Adafruit_SH110x::https://github.com/adafruit/Adafruit_SH110x.git:: \
 	STM32duino_STM32SD::https://github.com/stm32duino/STM32SD.git::src \
 	FatFs::https://github.com/stm32duino/FatFs.git::src
 

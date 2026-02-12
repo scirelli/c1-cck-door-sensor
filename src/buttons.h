@@ -10,7 +10,7 @@ extern "C"
 #endif
 
 #define BUTTON_DEBOUNCE_DELAY  20
-#define BUTTON_MAX_BUTTONS 1
+#define BUTTON_MAX_BUTTONS 4
 
 #define BUTTON_MAX_LISTENERS  16
 #define BUTTON_LISTENER_PRESS 0
@@ -37,7 +37,7 @@ static button_handle_t *buttons[BUTTON_MAX_BUTTONS];
 static uint8_t buttonsIdx = 0;
 
 void btn_initButton(button_handle_t *const button, int pin, int mode, buttonActionHandler_t down, buttonActionHandler_t up, buttonActionHandler_t press);
-void btn_addButton(button_handle_t * const button);
+bool btn_addButton(button_handle_t * const button);
 void btn_processButtons();
 
 

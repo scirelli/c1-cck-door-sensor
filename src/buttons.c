@@ -12,8 +12,10 @@ void btn_initButton(button_handle_t *const button, int pin, int mode, buttonActi
     pinMode(pin, mode);
 }
 
-void btn_addButton(button_handle_t *const button){
+bool btn_addButton(button_handle_t *const button){
+    if(buttonsIdx + 1 >= BUTTON_MAX_BUTTONS) return false;
     buttons[buttonsIdx++] = button;
+    return true;
 }
 
 void btn_processButtons() {
