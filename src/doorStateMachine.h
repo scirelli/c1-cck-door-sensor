@@ -97,6 +97,7 @@ struct door_pre_record_state_t  {
 
 struct door_record_state_t  {
     door_state_t ds;
+    float max_gs;
 };
 
 typedef union {
