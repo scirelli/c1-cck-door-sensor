@@ -23,6 +23,9 @@ extern "C"
 {
 #endif
 
+#define COLOR565(r, g, b) \
+    ((uint16_t)(((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3))
+
 #define DISPLAY_PRECISION   1
 
 #define MAX_TRANSITION_TIME     10000L
@@ -161,7 +164,6 @@ static void fire_auto_transition_to(door_states_id_t s_id, cck_time_t t);
 static void print_door_event_name(door_events_t evt_id);
 static void print_state_name(door_states_id_t state_id);
 static void print_state_name_every_x(state_t*, cck_time_t, cck_time_t x = 1000L);
-static uint16_t color565(uint8_t red, uint8_t green, uint8_t blue);
 static void display_default_settings();
 static void log_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
 static void write_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
@@ -171,6 +173,7 @@ static void display_error(const char* errorMsg);
 static void display_center(const char* str);
 static void display_bot_center(const char *str);
 static void display_top_center(const char *str);
+static void time_bar(float);
 
 
 // ==== Pre-Idle ====

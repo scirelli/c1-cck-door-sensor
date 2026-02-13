@@ -209,8 +209,10 @@ static state_hndlr_status_t pre_idle_animator(state_t *self_ptr, cck_time_t curT
     }
     door_sm.cfg.display->setTextSize(1);
     display_bot_center("Pre-Idle");
-    door_sm.cfg.display->display();
 
+    time_bar((float)elapTime/MAX_PRE_IDLE_TIME);
+
+    door_sm.cfg.display->display();
     return TRANSITION_OK;
 }
 static state_hndlr_status_t pre_idle_enter(state_t *self_ptr, cck_time_t t)
@@ -501,7 +503,7 @@ static void display_error(const char* errorMsg)
 {
     door_sm.cfg.display->clearDisplay();
     door_sm.cfg.display->setTextSize(2);
-    door_sm.cfg.display->setTextColor(color565(255,0,0));
+    door_sm.cfg.display->setTextColor(COLOR565(255,0,0));
     display_center(errorMsg);
     door_sm.cfg.display->display();
 }
@@ -529,15 +531,21 @@ static void display_top_center(const char *str)
     door_sm.cfg.display->setCursor(door_sm.cfg.display->width()/2 - w/2, 0);
     door_sm.cfg.display->print(str);
 }
-static uint16_t color565(uint8_t red, uint8_t green, uint8_t blue)
-{
-  return ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3);
-}
 static void display_default_settings()
 {
     door_sm.cfg.display->clearDisplay();
     door_sm.cfg.display->setTextColor(SH110X_WHITE);
     door_sm.cfg.display->setTextSize(1);
     door_sm.cfg.display->setCursor(0,0);
+}
+static void time_bar(float scale_factor)
+{
+    Serial.println(scale_factor);
+    door_sm.cfg.display->drawLine(
+        door_sm.cfg.display->width()-1, 0,
+        door_sm.cfg.display->width()-1, (door_sm.cfg.display->height()-1)*scale_factor,
+        SH110X_WHITE
+    );
+    door_sm.cfg.display->drawLine(0, 0, 127, 63, SH110X_WHITE);
 }
 //===================================================================

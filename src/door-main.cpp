@@ -17,6 +17,8 @@
 
 #define SERIAL_BAUD_RATE 115200
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
+#define COLOR565(r, g, b) \
+    ((uint16_t)(((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3))
 
 #define WRITE_DELAY 1000
 
@@ -435,15 +437,10 @@ static void display_error(const char* errorMsg)
     uint16_t w, h;
     display.clearDisplay();
     display.setTextSize(2);
-    display.setTextColor(color565(255,0,0));
+    display.setTextColor(COLOR565(255,0,0));
     display.getTextBounds(errorMsg, 0, 0, &x1, &y1, &w, &h);
     display.setCursor(display.width()/2 - w/2, display.height()/2 - h/2);
     display.println(errorMsg);
     display.display();
 }
-static uint16_t color565(uint8_t red, uint8_t green, uint8_t blue)
-{
-  return ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3);
-}
-
 //==========================================================================
