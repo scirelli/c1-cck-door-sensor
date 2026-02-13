@@ -2,6 +2,7 @@
 #define _DOORSTATEMACHINE_H
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <math.h>
 #include <Arduino.h>
 #include <STM32SD.h>
@@ -24,9 +25,9 @@ extern "C"
 
 #define DISPLAY_PRECISION   1
 
-#define MAX_TRANSITION_TIME     5000L
-#define MAX_PRE_IDLE_TIME       (MAX_TRANSITION_TIME)
-#define MAX_PRE_NEW_FILE_TIME   (MAX_PRE_IDLE_TIME)
+#define MAX_TRANSITION_TIME     10000L
+#define MAX_PRE_IDLE_TIME       5000L
+#define MAX_PRE_NEW_FILE_TIME   10000L
 
 typedef struct door_state_t              door_state_t;
 typedef struct door_pre_idle_state_t     door_pre_idle_state_t;
@@ -160,11 +161,16 @@ static void fire_auto_transition_to(door_states_id_t s_id, cck_time_t t);
 static void print_door_event_name(door_events_t evt_id);
 static void print_state_name(door_states_id_t state_id);
 static void print_state_name_every_x(state_t*, cck_time_t, cck_time_t x = 1000L);
+static uint16_t color565(uint8_t red, uint8_t green, uint8_t blue);
+static void display_default_settings();
 static void log_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
 static void write_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
 static void display_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp);
 static void blink_pixel(uint16_t hue, uint8_t sat, cck_time_t elapTime);
-static void print_center(const char* str);
+static void display_error(const char* errorMsg);
+static void display_center(const char* str);
+static void display_bot_center(const char *str);
+static void display_top_center(const char *str);
 
 
 // ==== Pre-Idle ====

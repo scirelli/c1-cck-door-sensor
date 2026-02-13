@@ -63,10 +63,95 @@ static void halt(const char reason[]);
 static void halt();
 
 
+static void buttonUp(cck_time_t startTime){}
+static void buttonDown(cck_time_t startTime){}
+static void buttonAPress(cck_time_t startTime)
+{
+    toggleLED(startTime);
+    door_fire_event(DOOR_EVENT_BUTTON_1_PRESS, startTime);
+}
+static void buttonBPress(cck_time_t startTime)
+{
+    toggleLED(startTime);
+    door_fire_event(DOOR_EVENT_BUTTON_2_PRESS, startTime);
+}
+static void buttonCPress(cck_time_t startTime)
+{
+    toggleLED(startTime);
+    door_fire_event(DOOR_EVENT_BUTTON_3_PRESS, startTime);
+}
+
+static void setup_buttons()
+{
+    btn_initButton(&btnA, BUTTON_A, INPUT_PULLUP, buttonDown, buttonUp, buttonAPress);
+    if(!btn_addButton(&btnA)) Serial.println("Could not add BUTTON_A");
+    btn_initButton(&btnB, BUTTON_B, INPUT_PULLUP, buttonDown, buttonUp, buttonBPress);
+    if(!btn_addButton(&btnB)) Serial.println("Could not add BUTTON_B");
+    btn_initButton(&btnC, BUTTON_C, INPUT_PULLUP, buttonDown, buttonUp, buttonCPress);
+    if(!btn_addButton(&btnC)) Serial.println("Could not add BUTTON_C");
+}
+
+static void setup_gpio()
+{
+    pinMode(LED_BUILTIN, OUTPUT);
+    setup_buttons();
+}
+
 static void setup_neopixels()
 {
   builtInNeo.begin();
   builtInNeo.show();  // Initialize to 'off'
+}
+
+static void setup_sdcard()
+{
+    if(!SD.begin(SD_DETECT_NONE)) {
+        halt("SD Initialization failed.");
+    }
+
+    print_file_list();
+
+    dataFile = SD.open(FILE_NAME, FILE_WRITE);
+    if (dataFile) {
+        dataFile.seek(dataFile.size()); //Move to the end of the file for appending.
+    } else {
+        Serial.print("Error opening file "); Serial.println(FILE_NAME);
+        halt();
+    }
+}
+
+static void shutdown_sdcard()
+{
+    SD.end();
+}
+
+static void setup_display()
+{
+  Serial.println("128x64 OLED FeatherWing test");
+  delay(250); // wait for the OLED to power up
+  display.begin(I2C_SH110X_ADDRESS, true);
+
+  Serial.println("OLED begin");
+
+  // Show image buffer on the display hardware.
+  // Since the buffer is intialized with an Adafruit splashscreen internally, this will display the splashscreen.
+  //display.display();
+  //delay(500);
+
+  // Clear the buffer.
+  display.clearDisplay();
+
+  display.setRotation(1);
+  display.setTextSize(2);
+  display.setTextColor(SH110X_WHITE);
+  int16_t x1, y1;
+  uint16_t w, h;
+  const char *str = "TIGGER!";
+  display.getTextBounds(str, 0, 0, &x1, &y1, &w, &h);
+  display.setCursor(display.width()/2 - w/2,display.height()/2 - h/2);
+  display.println(str);
+  display.display(); // actually display all of the above
+  delay(1000);
 }
 
 static void setup_accel_and_mag()
@@ -79,9 +164,11 @@ static void setup_accel_and_mag()
 
   if (!lsm6ds_success){
     Serial.println("Failed to find LSM6DS chip");
+    display_error("Failed to find LSM6DS chip");
   }
   if (!lis3mdl_success){
     Serial.println("Failed to find LIS3MDL chip");
+    display_error("Failed to find LIS3MDL chip");
   }
   if (!(lsm6ds_success && lis3mdl_success)) {
     while (1) {
@@ -258,62 +345,6 @@ static void setup_accel_and_mag()
                           true); // enabled!
 }
 
-static void setup_sdcard()
-{
-    if(!SD.begin(SD_DETECT_NONE)) {
-        halt("SD Initialization failed.");
-    }
-
-    print_file_list();
-
-    dataFile = SD.open(FILE_NAME, FILE_WRITE);
-    if (dataFile) {
-        dataFile.seek(dataFile.size()); //Move to the end of the file for appending.
-    } else {
-        Serial.print("Error opening file "); Serial.println(FILE_NAME);
-        halt();
-    }
-}
-
-static void shutdown_sdcard()
-{
-    SD.end();
-}
-
-static void buttonUp(cck_time_t startTime){}
-static void buttonDown(cck_time_t startTime){}
-static void buttonAPress(cck_time_t startTime)
-{
-    toggleLED(startTime);
-    door_fire_event(DOOR_EVENT_BUTTON_1_PRESS, startTime);
-}
-static void buttonBPress(cck_time_t startTime)
-{
-    toggleLED(startTime);
-    door_fire_event(DOOR_EVENT_BUTTON_2_PRESS, startTime);
-}
-static void buttonCPress(cck_time_t startTime)
-{
-    toggleLED(startTime);
-    door_fire_event(DOOR_EVENT_BUTTON_3_PRESS, startTime);
-}
-
-static void setup_buttons()
-{
-    btn_initButton(&btnA, BUTTON_A, INPUT_PULLUP, buttonDown, buttonUp, buttonAPress);
-    if(!btn_addButton(&btnA)) Serial.println("Could not add BUTTON_A");
-    btn_initButton(&btnB, BUTTON_B, INPUT_PULLUP, buttonDown, buttonUp, buttonBPress);
-    if(!btn_addButton(&btnB)) Serial.println("Could not add BUTTON_B");
-    btn_initButton(&btnC, BUTTON_C, INPUT_PULLUP, buttonDown, buttonUp, buttonCPress);
-    if(!btn_addButton(&btnC)) Serial.println("Could not add BUTTON_C");
-}
-
-static void setup_gpio()
-{
-    pinMode(LED_BUILTIN, OUTPUT);
-    setup_buttons();
-}
-
 static void setup_state_machine() {
     door_sm_cfg_t door_sm_config = {
         .lsm6ds     = &lsm6ds,
@@ -324,37 +355,9 @@ static void setup_state_machine() {
     };
     if(!door_init_state_machine(door_sm_config)) {
         Serial.println("Error failed to setup door state machine");
+        display_error("Error failed to setup door state machine");
         return;
     }
-}
-
-static void setup_display()
-{
-  Serial.println("128x64 OLED FeatherWing test");
-  delay(250); // wait for the OLED to power up
-  display.begin(I2C_SH110X_ADDRESS, true);
-
-  Serial.println("OLED begin");
-
-  // Show image buffer on the display hardware.
-  // Since the buffer is intialized with an Adafruit splashscreen internally, this will display the splashscreen.
-  display.display();
-  delay(500);
-
-  // Clear the buffer.
-  display.clearDisplay();
-
-  display.setRotation(1);
-  display.setTextSize(2);
-  display.setTextColor(SH110X_WHITE);
-  int16_t x1, y1;
-  uint16_t w, h;
-  const char *str = "TIGGER!";
-  display.getTextBounds(str, 0, 0, &x1, &y1, &w, &h);
-  display.setCursor(display.width()/2 - w/2,display.height()/2 - h/2);
-  display.println(str);
-  display.display(); // actually display all of the above
-  delay(1000);
 }
 
 //==========================================================================
@@ -367,10 +370,10 @@ void setup()
     while (!Serial) delay(10);
 
     setup_gpio();
+    setup_neopixels();
     setup_sdcard();
     setup_display();
     setup_accel_and_mag();
-    setup_neopixels();
     setup_state_machine();
 }
 
@@ -425,4 +428,22 @@ static void toggleLED(cck_time_t _)
     t = !t;
     digitalWrite(LED_BUILTIN, t);
 }
+
+static void display_error(const char* errorMsg)
+{
+    int16_t x1, y1;
+    uint16_t w, h;
+    display.clearDisplay();
+    display.setTextSize(2);
+    display.setTextColor(color565(255,0,0));
+    display.getTextBounds(errorMsg, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor(display.width()/2 - w/2, display.height()/2 - h/2);
+    display.println(errorMsg);
+    display.display();
+}
+static uint16_t color565(uint8_t red, uint8_t green, uint8_t blue)
+{
+  return ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3);
+}
+
 //==========================================================================

@@ -192,23 +192,30 @@ static state_hndlr_status_t pre_idle_animator(state_t *self_ptr, cck_time_t curT
     blink_pixel(43690, 255, elapTime);
 
     door_sm.cfg.display->clearDisplay();
-    if(elapTime > 0 && elapTime < 1000) {
-        print_center("T");
-    } else if(elapTime >= 1000 && elapTime < 2000) {
-        print_center("I");
-    } else if(elapTime >= 2000 && elapTime < 2500) {
-        print_center("GA   ");
-    } else if(elapTime >= 2500 && elapTime < 3000) {
-        print_center("GA GA");
-    } else if(elapTime >= 3000 && elapTime < 5000) {
-        print_center("EERRR!!");
+    door_sm.cfg.display->setTextSize(2);
+    //TODO: Convert this to something like frames of animation
+    if(elapTime > 0 && elapTime < 500) {
+        display_center("T");
+    } else if(elapTime >= 500 && elapTime < 1000) {
+        display_center("I");
+    } else if(elapTime >= 1000 && elapTime < 1500) {
+        display_center("GA   ");
+    } else if(elapTime >= 1500 && elapTime < 2000) {
+        display_center("GA GA");
+    } else if(elapTime >= 2000 && elapTime < 3000) {
+        display_center("EERRR!!");
+    } else if(elapTime >= 3000 && elapTime < MAX_PRE_IDLE_TIME) {
+        display_center("TIGGER!!");
     }
+    door_sm.cfg.display->setTextSize(1);
+    display_bot_center("Pre-Idle");
     door_sm.cfg.display->display();
 
     return TRANSITION_OK;
 }
 static state_hndlr_status_t pre_idle_enter(state_t *self_ptr, cck_time_t t)
 {
+    display_default_settings();
     self_ptr->enter_time = t;
     return TRANSITION_OK;
 }
@@ -245,15 +252,37 @@ static state_hndlr_status_t idle_enter(state_t *self_ptr, cck_time_t t)
     );
     door_sm.cfg.builtInNeo->show();
 
-    door_sm.cfg.display->clearDisplay();
-    door_sm.cfg.display->setTextColor(SH110X_WHITE);
-    door_sm.cfg.display->setCursor(0,0);
+    display_default_settings();
+    display_top_center("Last run max Gs");
     door_record_state_t *ds_ptr = (door_record_state_t*)door_get_state(RECORD);
     if(ds_ptr) {
+        const char *str1 = "16.00";
+        const char* str2 = " m/s^s";
+        int16_t x1, y1, x2, y2;
+        uint16_t w1, h1, w2, h2;
+
+
         door_sm.cfg.display->setTextSize(2);
-        door_sm.cfg.display->print(ds_ptr->max_gs, 2);
+        door_sm.cfg.display->getTextBounds(str1, 0, 0, &x1, &y1, &w1, &h1);
         door_sm.cfg.display->setTextSize(1);
-        door_sm.cfg.display->println(" m/s^s");
+        door_sm.cfg.display->getTextBounds(str2, 0, 0, &x2, &y2, &w2, &h2);
+
+        door_sm.cfg.display->setCursor(
+                door_sm.cfg.display->width()/2 - (w1/2 + w2/2),
+                door_sm.cfg.display->height()/2 - h1/2
+        );
+        door_sm.cfg.display->setTextSize(2);
+        door_sm.cfg.display->print(ds_ptr->max_gs);
+
+        door_sm.cfg.display->setCursor(
+                (door_sm.cfg.display->width()/2 - (w1/2 + w2/2)) + w1/2 + w2*.7f,
+                door_sm.cfg.display->height()/2 - h1/2 + h2
+        );
+        door_sm.cfg.display->setTextSize(1);
+        door_sm.cfg.display->print(str2);
+
+        const char *str = "Idle";
+        display_bot_center(str);
     }
     door_sm.cfg.display->display();
 
@@ -283,6 +312,7 @@ static state_hndlr_status_t pre_new_file_animator(state_t *self_ptr, cck_time_t 
         fire_auto_transition_to(NEW_FILE, curTime);
         return TRANSITION_NEXT;
     }
+
     blink_pixel(0, 255, elapTime);
     return TRANSITION_OK;
 }
@@ -298,11 +328,11 @@ static state_hndlr_status_t pre_new_file_enter(state_t *self_ptr, cck_time_t t)
     );
     door_sm.cfg.builtInNeo->show();
 
-    door_sm.cfg.display->clearDisplay();
-    door_sm.cfg.display->setTextColor(SH110X_WHITE);
-    door_sm.cfg.display->setCursor(0,0);
+    display_default_settings();
     door_sm.cfg.display->setTextSize(2);
-    door_sm.cfg.display->println("Create New file?");
+    display_center("Create a  new file?");
+    door_sm.cfg.display->setTextSize(1);
+    display_bot_center("Press btn to skip");
     door_sm.cfg.display->display();
 
     return TRANSITION_OK;
@@ -467,12 +497,47 @@ static void blink_pixel(uint16_t hue, uint8_t sat, cck_time_t elapTime)
     );
     door_sm.cfg.builtInNeo->show();
 }
-static void print_center(const char *str)
+static void display_error(const char* errorMsg)
+{
+    door_sm.cfg.display->clearDisplay();
+    door_sm.cfg.display->setTextSize(2);
+    door_sm.cfg.display->setTextColor(color565(255,0,0));
+    display_center(errorMsg);
+    door_sm.cfg.display->display();
+}
+static void display_center(const char *str)
 {
     int16_t x1, y1;
     uint16_t w, h;
     door_sm.cfg.display->getTextBounds(str, 0, 0, &x1, &y1, &w, &h);
     door_sm.cfg.display->setCursor(door_sm.cfg.display->width()/2 - w/2,door_sm.cfg.display->height()/2 - h/2);
-    door_sm.cfg.display->println(str);
+    door_sm.cfg.display->print(str);
+}
+static void display_bot_center(const char *str)
+{
+    int16_t x1, y1;
+    uint16_t w, h;
+    door_sm.cfg.display->getTextBounds(str, 0, 0, &x1, &y1, &w, &h);
+    door_sm.cfg.display->setCursor(door_sm.cfg.display->width()/2 - w/2, door_sm.cfg.display->height()-h);
+    door_sm.cfg.display->print(str);
+}
+static void display_top_center(const char *str)
+{
+    int16_t x1, y1;
+    uint16_t w, h;
+    door_sm.cfg.display->getTextBounds(str, 0, 0, &x1, &y1, &w, &h);
+    door_sm.cfg.display->setCursor(door_sm.cfg.display->width()/2 - w/2, 0);
+    door_sm.cfg.display->print(str);
+}
+static uint16_t color565(uint8_t red, uint8_t green, uint8_t blue)
+{
+  return ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3);
+}
+static void display_default_settings()
+{
+    door_sm.cfg.display->clearDisplay();
+    door_sm.cfg.display->setTextColor(SH110X_WHITE);
+    door_sm.cfg.display->setTextSize(1);
+    door_sm.cfg.display->setCursor(0,0);
 }
 //===================================================================
