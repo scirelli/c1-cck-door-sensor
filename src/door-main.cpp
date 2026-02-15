@@ -20,8 +20,6 @@
 #define COLOR565(r, g, b) \
     ((uint16_t)(((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3))
 
-#define WRITE_DELAY 1000
-
 #define NUMPIXELS         1
 
 #define I2C_LIS3MDL_ADDRESS 0x1E
@@ -35,12 +33,10 @@
 #define BUTTON_A            5 //PA15 //CS
 #define BUTTON_B            6 //PC7
 #define BUTTON_C            9 //PC5
-#define FILE_NAME "data.csv"
 
 
 static Adafruit_LSM6DSOX lsm6ds;
 static Adafruit_LIS3MDL lis3mdl;
-static File dataFile;
 static button_handle_t btnA, btnB, btnC;
 static Adafruit_NeoPixel builtInNeo(1, BUILT_IN_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 static Adafruit_SH1107 display = Adafruit_SH1107(64, 128, &Wire);
@@ -110,16 +106,7 @@ static void setup_sdcard()
     if(!SD.begin(SD_DETECT_NONE)) {
         halt("SD Initialization failed.");
     }
-
     print_file_list();
-
-    dataFile = SD.open(FILE_NAME, FILE_WRITE);
-    if (dataFile) {
-        dataFile.seek(dataFile.size()); //Move to the end of the file for appending.
-    } else {
-        Serial.print("Error opening file "); Serial.println(FILE_NAME);
-        halt();
-    }
 }
 
 static void shutdown_sdcard()
@@ -351,7 +338,7 @@ static void setup_state_machine() {
     door_sm_cfg_t door_sm_config = {
         .lsm6ds     = &lsm6ds,
         .lis3mdl    = &lis3mdl,
-        .dataFile   = &dataFile,
+        .dataFile   = NULL,
         .builtInNeo = &builtInNeo,
         .display    = &display
     };

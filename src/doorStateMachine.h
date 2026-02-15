@@ -29,8 +29,11 @@ extern "C"
 #define DISPLAY_PRECISION   1
 
 #define MAX_TRANSITION_TIME     10000L
-#define MAX_PRE_IDLE_TIME       5000L
+#define MAX_PRE_IDLE_TIME       10000L
 #define MAX_PRE_NEW_FILE_TIME   10000L
+#define MAX_PRE_RECORD_TIME     10000L
+#define NEW_FILE_MSG_DELAY      5000L
+#define FILE_NAME "data_%lu.csv"
 
 typedef struct door_state_t              door_state_t;
 typedef struct door_pre_idle_state_t     door_pre_idle_state_t;
@@ -98,6 +101,7 @@ struct door_pre_new_file_state_t {
 
 struct door_new_file_state_t  {
     door_state_t ds;
+    bool fileCreated;
 };
 
 struct door_pre_record_state_t  {
@@ -174,7 +178,8 @@ static void display_center(const char* str);
 static void display_bot_center(const char *str);
 static void display_top_center(const char *str);
 static void time_bar(float);
-
+static void halt();
+static void halt_with_reason(const char[]);
 
 // ==== Pre-Idle ====
 static state_hndlr_status_t pre_idle_animator(state_t*, cck_time_t);
@@ -198,6 +203,27 @@ static state_hndlr_status_t pre_new_file_exit(state_t*, cck_time_t);
 static void pre_new_file_btn1_prs_hndler(door_state_t *self, cck_time_t _, void *context);
 // =====================
 
+// ==== New File ====
+static state_hndlr_status_t new_file_animator(state_t*, cck_time_t);
+static state_hndlr_status_t new_file_enter(state_t*, cck_time_t);
+static state_hndlr_status_t new_file_exit(state_t*, cck_time_t);
+static void new_file_btn1_prs_hndler(door_state_t *self, cck_time_t _, void *context);
+// =====================
+
+// ==== Pre-Record ====
+static state_hndlr_status_t pre_record_animator(state_t*, cck_time_t);
+static state_hndlr_status_t pre_record_enter(state_t*, cck_time_t);
+static state_hndlr_status_t pre_record_exit(state_t*, cck_time_t);
+static void pre_record_btn1_prs_hndler(door_state_t *self, cck_time_t _, void *context);
+// =====================
+
+// ==== Record ====
+static state_hndlr_status_t record_animator(state_t*, cck_time_t);
+static state_hndlr_status_t record_enter(state_t*, cck_time_t);
+static state_hndlr_status_t record_exit(state_t*, cck_time_t);
+static void record_btn1_prs_hndler(door_state_t *self, cck_time_t _, void *context);
+static void record_sensor_evt_hndler(door_state_t *self, cck_time_t _, void *context);
+// ================
 
 #ifdef __cplusplus
 }

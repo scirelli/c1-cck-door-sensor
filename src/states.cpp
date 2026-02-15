@@ -35,12 +35,11 @@ bool state_fire_event(state_machine_t *sm_ptr, state_event_id_t evt, cck_time_t 
         }
         if(sm_ptr->cur_state->next_state) {
             state_transition(sm_ptr, sm_ptr->cur_state->next_state, t);
+            sm_ptr->cur_state->next_state = NULL;
         }
     }
     return true;
 }
-
-
 
 
 static state_trans_status_t state_transition(state_machine_t *sm_ptr, state_t *next_state_ptr, cck_time_t t)
