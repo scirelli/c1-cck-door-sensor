@@ -29,7 +29,8 @@ static door_state_container_t door_states[_DOOR_STATE_COUNT] = {
                     [DOOR_EVENT_BUTTON_1_PRESS] = pre_idle_btn1_prs_hndler,
                     [DOOR_EVENT_BUTTON_2_PRESS] = NULL,
                     [DOOR_EVENT_BUTTON_3_PRESS] = NULL,
-                    [DOOR_AUTO_TRANSITION] = auto_evt_hndler
+                    [DOOR_AUTO_TRANSITION] = auto_evt_hndler,
+                    [DOOR_ERROR] = error_evt_hndler
                 }
             }
         }
@@ -48,7 +49,8 @@ static door_state_container_t door_states[_DOOR_STATE_COUNT] = {
                     [DOOR_EVENT_BUTTON_1_PRESS] = idle_btn1_prs_hndler,
                     [DOOR_EVENT_BUTTON_2_PRESS] = NULL,
                     [DOOR_EVENT_BUTTON_3_PRESS] = NULL,
-                    [DOOR_AUTO_TRANSITION] = auto_evt_hndler
+                    [DOOR_AUTO_TRANSITION] = auto_evt_hndler,
+                    [DOOR_ERROR] = error_evt_hndler
                 }
             },
         }
@@ -67,7 +69,8 @@ static door_state_container_t door_states[_DOOR_STATE_COUNT] = {
                     [DOOR_EVENT_BUTTON_1_PRESS] = pre_new_file_btn1_prs_hndler,
                     [DOOR_EVENT_BUTTON_2_PRESS] = NULL,
                     [DOOR_EVENT_BUTTON_3_PRESS] = NULL,
-                    [DOOR_AUTO_TRANSITION] = auto_evt_hndler
+                    [DOOR_AUTO_TRANSITION] = auto_evt_hndler,
+                    [DOOR_ERROR] = error_evt_hndler
                 }
             },
         }
@@ -86,7 +89,8 @@ static door_state_container_t door_states[_DOOR_STATE_COUNT] = {
                     [DOOR_EVENT_BUTTON_1_PRESS] = new_file_btn1_prs_hndler,
                     [DOOR_EVENT_BUTTON_2_PRESS] = NULL,
                     [DOOR_EVENT_BUTTON_3_PRESS] = NULL,
-                    [DOOR_AUTO_TRANSITION] = auto_evt_hndler
+                    [DOOR_AUTO_TRANSITION] = auto_evt_hndler,
+                    [DOOR_ERROR] = error_evt_hndler
                 }
             },
             .fileCreated = false
@@ -106,7 +110,8 @@ static door_state_container_t door_states[_DOOR_STATE_COUNT] = {
                     [DOOR_EVENT_BUTTON_1_PRESS] = pre_record_btn1_prs_hndler,
                     [DOOR_EVENT_BUTTON_2_PRESS] = NULL,
                     [DOOR_EVENT_BUTTON_3_PRESS] = NULL,
-                    [DOOR_AUTO_TRANSITION] = auto_evt_hndler
+                    [DOOR_AUTO_TRANSITION] = auto_evt_hndler,
+                    [DOOR_ERROR] = error_evt_hndler
                 }
             },
         }
@@ -126,10 +131,31 @@ static door_state_container_t door_states[_DOOR_STATE_COUNT] = {
                     [DOOR_EVENT_BUTTON_2_PRESS] = NULL,
                     [DOOR_EVENT_BUTTON_3_PRESS] = NULL,
                     [DOOR_AUTO_TRANSITION] = auto_evt_hndler,
+                    [DOOR_ERROR] = error_evt_hndler,
                     [DOOR_SENSOR_READING] = record_sensor_evt_hndler
                 }
             },
             .max_gs = 0.0f
+        }
+    },
+    [EEYORE] = {
+        .error = {
+            .ds = {
+                .base_state = {
+                    .state_id = EEYORE,
+                    .animator_fnc = error_animator,
+                    .enter_handler = error_enter,
+                    .exit_handler = error_exit,
+                    .evtHandler = door_state_event_handler
+                },
+                .event_handlers = {
+                    [DOOR_EVENT_BUTTON_1_PRESS] = error_btn1_prs_hndler,
+                    [DOOR_EVENT_BUTTON_2_PRESS] = NULL,
+                    [DOOR_EVENT_BUTTON_3_PRESS] = NULL,
+                    [DOOR_AUTO_TRANSITION] = auto_evt_hndler
+                }
+            },
+            .error_msg = NULL
         }
     }
 };
@@ -232,6 +258,15 @@ static void auto_evt_hndler(door_state_t *self, cck_time_t t, void *context)
     if(!context) return;
     door_auto_evt_ctx_t *evt = (door_auto_evt_ctx_t*)context;
     self->base_state.next_state = evt->next_state;
+}
+
+static void error_evt_hndler(door_state_t *self, cck_time_t t, void *context)
+{
+    if(!context) return;
+    door_error_state_t *error_state = (door_error_state_t*)door_get_state(EEYORE);
+    door_error_evt_ctx_t *evt = (door_error_evt_ctx_t*)context;
+    error_state->error_msg = evt->error_msg ? evt->error_msg : "Unknown Error";
+    self->base_state.next_state = &error_state->ds.base_state;
 }
 //===================================================================
 
@@ -444,23 +479,28 @@ static state_hndlr_status_t new_file_enter(state_t *self_ptr, cck_time_t t)
     );
     door_sm.cfg.builtInNeo->show();
 
-    display_default_settings();
-    door_sm.cfg.display->setTextSize(2);
-    display_center("Creating a new file");
-    door_sm.cfg.display->display();
+    Serial.print("New file state");
+    if (dataFile) {
+        Serial.println("Closing file..");
+        dataFile.close();
+    }
 
-    char filename[20];
+    char filename[25];
     snprintf(filename, sizeof(filename), FILE_NAME, t);
     dataFile = SD.open(filename, FILE_WRITE);
     if (dataFile) {
         dataFile.seek(dataFile.size()); //Move to the end of the file for appending.
         ds_ptr->fileCreated = true;
     } else {
-        Serial.print("Error opening file ");
+        Serial.print("Error opening file");
         Serial.println(filename);
-        halt();
+        door_error_evt_ctx_t evt = { .error_msg = "Error opening file" };
+        door_fire_event(DOOR_ERROR, t, &evt);
+        return TRANSITION_ERROR;
     }
-    door_sm.cfg.display->clearDisplay();
+
+    display_default_settings();
+    door_sm.cfg.display->setTextSize(2);
     display_center("New file  created");
     door_sm.cfg.display->setTextSize(1);
     display_top_center(filename);
@@ -545,6 +585,11 @@ static state_hndlr_status_t record_animator(state_t *self_ptr, cck_time_t curTim
 }
 static state_hndlr_status_t record_enter(state_t *self_ptr, cck_time_t t)
 {
+    if(!dataFile) {
+        door_error_evt_ctx_t evt = { .error_msg = "File not open" };
+        door_fire_event(DOOR_ERROR, t, &evt);
+        return TRANSITION_ERROR;
+    }
     self_ptr->enter_time = t;
     door_record_state_t *ds_ptr = (door_record_state_t*)self_ptr;
     ds_ptr->max_gs = 0.0f;
@@ -560,6 +605,7 @@ static state_hndlr_status_t record_enter(state_t *self_ptr, cck_time_t t)
 static state_hndlr_status_t record_exit(state_t *self_ptr, cck_time_t t)
 {
     if(dataFile) {
+        Serial.println("Closing file 2");
         dataFile.close();
     }
     return TRANSITION_OK;
@@ -588,6 +634,56 @@ static void record_sensor_evt_hndler(door_state_t *self, cck_time_t t, void *con
     display_sensor_data(evt->accel, evt->gyro, evt->mag, evt->temp);
 }
 //===================================================================
+
+
+
+//===================================================================
+// Error State 
+//===================================================================
+static state_hndlr_status_t error_animator(state_t *self_ptr, cck_time_t curTime)
+{
+    cck_time_t elapTime = curTime - self_ptr->enter_time;
+    print_state_name_every_x(self_ptr, curTime);
+    blink_pixel(0, 255, elapTime);  // Blink red
+    return TRANSITION_OK;
+}
+static state_hndlr_status_t error_enter(state_t *self_ptr, cck_time_t t)
+{
+    self_ptr->enter_time = t;
+    door_error_state_t *ds_ptr = (door_error_state_t*)self_ptr;
+
+    door_sm.cfg.builtInNeo->clear();
+    door_sm.cfg.builtInNeo->setPixelColor(0,
+        door_sm.cfg.builtInNeo->gamma32(
+            door_sm.cfg.builtInNeo->ColorHSV(0, 255, 128)
+        )
+    );
+    door_sm.cfg.builtInNeo->show();
+
+    display_default_settings();
+    door_sm.cfg.display->setTextSize(2);
+    display_top_center("ERROR");
+    door_sm.cfg.display->setTextSize(1);
+    if(ds_ptr->error_msg) {
+        display_center(ds_ptr->error_msg);
+    }
+    display_bot_center("Press btn to reset");
+    door_sm.cfg.display->display();
+
+    return TRANSITION_OK;
+}
+static state_hndlr_status_t error_exit(state_t *self_ptr, cck_time_t t)
+{
+    door_error_state_t *ds_ptr = (door_error_state_t*)self_ptr;
+    ds_ptr->error_msg = NULL;
+    return TRANSITION_OK;
+}
+static void error_btn1_prs_hndler(door_state_t *self, cck_time_t t, void *context)
+{
+    fire_auto_transition_to(IDLE, t);
+}
+//===================================================================
+
 
 
 //===================================================================
@@ -652,43 +748,42 @@ static void write_sensor_data(const sensors_event_t *accel, const sensors_event_
 
 static void display_sensor_data(const sensors_event_t *accel, const sensors_event_t *gyro, const sensors_event_t *mag, const sensors_event_t *temp)
 {
-    Adafruit_SH1107 display = *door_sm.cfg.display;
-  display.clearDisplay();
-  display.setCursor(0,0);
-  display.setTextSize(1);
+  door_sm.cfg.display->clearDisplay();
+  door_sm.cfg.display->setCursor(0,0);
+  door_sm.cfg.display->setTextSize(1);
 
   // Display the results (acceleration is measured in m/s^2)
-  display.print("AX: ");                                     // 3
-  display.print(accel->acceleration.x, DISPLAY_PRECISION);  // 3
-  display.print(" Y: ");                                    // 4
-  display.print(accel->acceleration.y, DISPLAY_PRECISION);  // 3
-  display.print(" Z: ");                                    // 4
-  display.println(accel->acceleration.z, DISPLAY_PRECISION);  // 3
+  door_sm.cfg.display->print("AX: ");                                     // 3
+  door_sm.cfg.display->print(accel->acceleration.x, DISPLAY_PRECISION);  // 3
+  door_sm.cfg.display->print(" Y: ");                                    // 4
+  door_sm.cfg.display->print(accel->acceleration.y, DISPLAY_PRECISION);  // 3
+  door_sm.cfg.display->print(" Z: ");                                    // 4
+  door_sm.cfg.display->println(accel->acceleration.z, DISPLAY_PRECISION);  // 3
   //display.println(" m/s^2 ");                               // 7
 
   // Display the results (rotation is measured in rad/s)
-  display.print("GX: ");
-  display.print(gyro->gyro.x, DISPLAY_PRECISION);
-  display.print(" Y: ");
-  display.print(gyro->gyro.y, DISPLAY_PRECISION);
-  display.print(" Z: ");
-  display.println(gyro->gyro.z, DISPLAY_PRECISION);
+  door_sm.cfg.display->print("GX: ");
+  door_sm.cfg.display->print(gyro->gyro.x, DISPLAY_PRECISION);
+  door_sm.cfg.display->print(" Y: ");
+  door_sm.cfg.display->print(gyro->gyro.y, DISPLAY_PRECISION);
+  door_sm.cfg.display->print(" Z: ");
+  door_sm.cfg.display->println(gyro->gyro.z, DISPLAY_PRECISION);
   //display.println(" r/s");
 
   // Display the results (magnetic field is measured in uTesla)
-  display.print("MX: ");
-  display.print(mag->magnetic.x, DISPLAY_PRECISION);
-  display.print(" Y: ");
-  display.print(mag->magnetic.y, DISPLAY_PRECISION);
-  display.print(" Z: ");
-  display.println(mag->magnetic.z, DISPLAY_PRECISION);
+  door_sm.cfg.display->print("MX: ");
+  door_sm.cfg.display->print(mag->magnetic.x, DISPLAY_PRECISION);
+  door_sm.cfg.display->print(" Y: ");
+  door_sm.cfg.display->print(mag->magnetic.y, DISPLAY_PRECISION);
+  door_sm.cfg.display->print(" Z: ");
+  door_sm.cfg.display->println(mag->magnetic.z, DISPLAY_PRECISION);
   //display.println(" uT ");
 
-  display.print("Temp: ");
-  display.print(temp->temperature);
-  display.print(" C");
+  door_sm.cfg.display->print("Temp: ");
+  door_sm.cfg.display->print(temp->temperature);
+  door_sm.cfg.display->print(" C");
 
-  display.display();
+  door_sm.cfg.display->display();
 }
 static void print_state_name(door_states_id_t state_id)
 {
@@ -783,15 +878,5 @@ static void time_bar(float scale_factor)
         door_sm.cfg.display->width()-1, (door_sm.cfg.display->height()-1)*scale_factor,
         SH110X_WHITE
     );
-}
-static void halt_with_reason(const char reason[])
-{
-    Serial.println(reason);
-    while(1);
-}
-
-static void halt()
-{
-    while(1);
 }
 //===================================================================

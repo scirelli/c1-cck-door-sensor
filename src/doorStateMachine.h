@@ -58,6 +58,7 @@ typedef void (*door_event_handler_t)(door_state_t*, cck_time_t, void*);
     X(NEW_FILE) \
     X(PRE_RECORD) \
     X(RECORD) \
+    X(EEYORE) \
     X(_DOOR_STATE_COUNT)
 
 typedef enum:state_id_t {
@@ -74,6 +75,7 @@ typedef enum:state_id_t {
     X(DOOR_EVENT_BUTTON_2_PRESS) \
     X(DOOR_EVENT_BUTTON_3_PRESS) \
     X(DOOR_AUTO_TRANSITION) \
+    X(DOOR_ERROR) \
     X(DOOR_SENSOR_READING) \
     X(_DOOR_EVENT_COUNT)
 typedef enum: state_event_id_t  {
@@ -113,6 +115,11 @@ struct door_record_state_t  {
     float max_gs;
 };
 
+struct door_error_state_t {
+    door_state_t ds;
+    const char* error_msg;
+};
+
 typedef union {
     state_t                   generic;
     door_state_t              door_state;
@@ -122,6 +129,7 @@ typedef union {
     door_new_file_state_t     new_file;
     door_pre_record_state_t   pre_record;
     door_record_state_t       record;
+    door_error_state_t        error;
 } door_state_container_t;
 
 typedef struct {
@@ -134,6 +142,10 @@ typedef struct {
 typedef struct {
    state_t* next_state;
 } door_auto_evt_ctx_t;
+
+typedef struct {
+   const char* error_msg;
+} door_error_evt_ctx_t;
 
 typedef struct {
     const Adafruit_LSM6DSOX *lsm6ds;
@@ -164,7 +176,9 @@ static void door_state_event_handler(state_t* state_ptr, state_event_id_t evt, c
 static bool is_valid_door_state_id(door_states_id_t);
 static bool is_valid_door_event_id(door_events_t);
 static void auto_evt_hndler(door_state_t *self, cck_time_t t, void *context);
+static void error_evt_hndler(door_state_t *self, cck_time_t t, void *context);
 static void fire_auto_transition_to(door_states_id_t s_id, cck_time_t t);
+
 static void print_door_event_name(door_events_t evt_id);
 static void print_state_name(door_states_id_t state_id);
 static void print_state_name_every_x(state_t*, cck_time_t, cck_time_t x = 1000L);
@@ -178,8 +192,6 @@ static void display_center(const char* str);
 static void display_bot_center(const char *str);
 static void display_top_center(const char *str);
 static void time_bar(float);
-static void halt();
-static void halt_with_reason(const char[]);
 
 // ==== Pre-Idle ====
 static state_hndlr_status_t pre_idle_animator(state_t*, cck_time_t);
@@ -224,6 +236,14 @@ static state_hndlr_status_t record_exit(state_t*, cck_time_t);
 static void record_btn1_prs_hndler(door_state_t *self, cck_time_t _, void *context);
 static void record_sensor_evt_hndler(door_state_t *self, cck_time_t _, void *context);
 // ================
+
+// ==== Error ====
+static state_hndlr_status_t error_animator(state_t*, cck_time_t);
+static state_hndlr_status_t error_enter(state_t*, cck_time_t);
+static state_hndlr_status_t error_exit(state_t*, cck_time_t);
+static void error_btn1_prs_hndler(door_state_t *self, cck_time_t _, void *context);
+// =================
+
 
 #ifdef __cplusplus
 }
