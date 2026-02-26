@@ -22,9 +22,9 @@
 
 #define NUMPIXELS         1
 
-#define I2C_LIS3MDL_ADDRESS 0x1E
-#define I2C_LSM6DS_ADDRESS  0x6A // D0 Pull high for 0x6B
-#define I2C_SH110X_ADDRESS  0x3C // Address 0x3C default
+#define I2C_LIS3MDL_ADDRESS 0x1C // 0x1C default. SD0 pulled high for 0x1E
+#define I2C_LSM6DS_ADDRESS  0x6A // 0x6A default. D0 Pull high for 0x6B
+#define I2C_SH110X_ADDRESS  0x3C // 0x3C default.
 
 //==== Pin out ====
 //#define CLEAR_BTN_PIN       5
@@ -355,7 +355,7 @@ void setup()
 
     Serial.begin(SERIAL_BAUD_RATE);
     //TODO: Remove, only used for debugging.
-    //while (!Serial) delay(10);
+    while (!Serial) delay(10);
 
     setup_gpio();
     setup_neopixels();
