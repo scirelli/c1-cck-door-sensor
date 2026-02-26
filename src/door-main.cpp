@@ -355,7 +355,7 @@ void setup()
 
     Serial.begin(SERIAL_BAUD_RATE);
     //TODO: Remove, only used for debugging.
-    while (!Serial) delay(10);
+    //while (!Serial) delay(10);
 
     setup_gpio();
     setup_neopixels();
