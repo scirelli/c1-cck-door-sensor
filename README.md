@@ -138,4 +138,27 @@ Additional Useful Long-Form Flags:
 │Events:                               │
 │ * btn-prs: next state Pre-Idle       │
 └──────────────────────────────────────┘
+                   |
+┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+│             Pre-Calibrate            │
+│Animation:                            │
+│ * Pixel color light pink             │
+│ * Shows sliding bar count down till  │
+│  auto state change                   │
+│Events:                               │
+│ * auto-trans: Calibrate after 3s     │
+│ * btn-prs: next state Pre-Idle       │
+└──────────────────────────────────────┘
+                   |
+┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+│             Calibrating              │
+│Animation:                            │
+│ * Pixel color flash light pink       │
+│ * Shows sliding bar count down till  │
+│ * Takes calibration readings         │
+│  auto state change                   │
+│Events:                               │
+│ * btn-prs: next state Pre-Idle       │
+└──────────────────────────────────────┘
+                    
 ```
